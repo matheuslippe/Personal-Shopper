@@ -75,14 +75,43 @@ const app = {
     lucide.createIcons();
   },
 
+  setAuthMode(mode) {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const tabLogin = document.getElementById('tab-btn-login');
+    const tabRegister = document.getElementById('tab-btn-register');
+    const errBox = document.getElementById('auth-error');
+    const succBox = document.getElementById('auth-success');
+
+    if (errBox) errBox.classList.add('hidden');
+    if (succBox) succBox.classList.add('hidden');
+
+    if (mode === 'register') {
+      loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+      tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-white text-slate-900 shadow-xs transition-all';
+      tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-900 transition-all';
+      document.getElementById('register-username').focus();
+    } else {
+      registerForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+      tabLogin.className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-white text-slate-900 shadow-xs transition-all';
+      tabRegister.className = 'flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-900 transition-all';
+      document.getElementById('login-username').focus();
+    }
+    lucide.createIcons();
+  },
+
   async handleLogin(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-login-submit');
-    const errBox = document.getElementById('login-error');
+    const errBox = document.getElementById('auth-error');
+    const succBox = document.getElementById('auth-success');
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value;
 
-    errBox.classList.add('hidden');
+    if (errBox) errBox.classList.add('hidden');
+    if (succBox) succBox.classList.add('hidden');
     btn.disabled = true;
     btn.innerHTML = `<span>Entrando...</span>`;
 
@@ -105,11 +134,66 @@ const app = {
       this.showToast('Login realizado com sucesso!', 'success');
       await this.loadInitialData();
     } catch (err) {
-      errBox.textContent = err.message;
-      errBox.classList.remove('hidden');
+      if (errBox) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      }
     } finally {
       btn.disabled = false;
       btn.innerHTML = `<span>Acessar Painel</span> <i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+  },
+
+  async handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-register-submit');
+    const errBox = document.getElementById('auth-error');
+    const succBox = document.getElementById('auth-success');
+    const username = document.getElementById('register-username').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-confirm-password').value;
+
+    if (errBox) errBox.classList.add('hidden');
+    if (succBox) succBox.classList.add('hidden');
+
+    if (password !== confirmPassword) {
+      if (errBox) {
+        errBox.textContent = 'As senhas digitadas não coincidem.';
+        errBox.classList.remove('hidden');
+      }
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = `<span>Criando conta...</span>`;
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, confirmPassword })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao cadastrar');
+      }
+
+      this.token = data.token;
+      this.user = data.user;
+      localStorage.setItem('assessoria_token', this.token);
+      this.hideAuthScreen();
+      this.showToast('Conta criada e logada com sucesso!', 'success');
+      await this.loadInitialData();
+    } catch (err) {
+      if (errBox) {
+        errBox.textContent = err.message;
+        errBox.classList.remove('hidden');
+      }
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Criar Minha Conta</span> <i data-lucide="check" class="w-4 h-4"></i>`;
       lucide.createIcons();
     }
   },

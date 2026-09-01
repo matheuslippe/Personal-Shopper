@@ -355,6 +355,57 @@ const server = http.createServer(async (req, res) => {
 
   try {
     // --- AUTHENTICATION ROUTES (PUBLIC) ---
+    if (pathname === '/api/auth/register' && req.method === 'POST') {
+      const body = await parseJsonBody(req);
+      const { username, password, confirmPassword } = body;
+
+      if (!username || !password) {
+        return sendError(res, 400, 'Informe usuário e senha para cadastro.');
+      }
+
+      const cleanUsername = username.trim();
+      if (cleanUsername.length < 3) {
+        return sendError(res, 400, 'O nome de usuário deve ter no mínimo 3 caracteres.');
+      }
+
+      if (password.length < 4) {
+        return sendError(res, 400, 'A senha deve ter no mínimo 4 caracteres.');
+      }
+
+      if (confirmPassword !== undefined && password !== confirmPassword) {
+        return sendError(res, 400, 'As senhas digitadas não coincidem.');
+      }
+
+      const existingUser = await queryGet("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", [cleanUsername]);
+      if (existingUser) {
+        return sendError(res, 400, 'Este nome de usuário já está cadastrado.');
+      }
+
+      const { hash, salt } = hashPassword(password);
+      const now = new Date().toISOString();
+      const insertResult = await queryRun(
+        "INSERT INTO users (username, password_hash, salt, created_at) VALUES (?, ?, ?, ?)",
+        [cleanUsername, hash, salt, now]
+      );
+
+      const userId = insertResult.lastInsertRowid;
+
+      // Create session valid for 30 days
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      await queryRun(
+        "INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+        [token, userId, expiresAt, now]
+      );
+
+      return sendJson(res, 201, {
+        token,
+        user: { id: userId, username: cleanUsername },
+        message: 'Conta criada com sucesso!'
+      });
+    }
+
     if (pathname === '/api/auth/login' && req.method === 'POST') {
       const body = await parseJsonBody(req);
       const { username, password } = body;

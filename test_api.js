@@ -30,7 +30,25 @@ async function runTests() {
     if (!text.includes('Assessoria Express')) throw new Error('Conteúdo HTML inválido');
   });
 
-  // 2. Authentication Login
+  // 2. Authentication Register (New User)
+  const testUser = `shopper_${Date.now()}`;
+  await assert('Cadastro de novo usuário (/api/auth/register)', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: testUser,
+        password: 'password123',
+        confirmPassword: 'password123'
+      })
+    });
+    const data = await res.json();
+    if (res.status !== 201 || !data.token || data.user.username !== testUser) {
+      throw new Error(data.error || 'Falha ao cadastrar novo usuário');
+    }
+  });
+
+  // 2.1 Authentication Login (Standard Admin)
   await assert('Login de usuário padrão (admin / admin123)', async () => {
     const res = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
