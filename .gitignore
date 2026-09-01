@@ -3,9 +3,9 @@ node_modules/
 npm-debug.log*
 
 # Database (uncomment if you want local database to remain private)
-# database.sqlite
-# database.sqlite-wal
-# database.sqlite-shm
+# dados/*.db
+# dados/*.db-wal
+# dados/*.db-shm
 
 # Environment & Temp
 .env

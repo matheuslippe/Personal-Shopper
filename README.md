@@ -63,4 +63,4 @@ Sistema web completo, moderno e responsivo desenvolvido especialmente para gest�
 - **Runtime**: Node.js (com SQLite nativo `node:sqlite` de alta performance)
 - **Frontend**: HTML5, Tailwind CSS, Lucide Icons, Chart.js
 - **Segurança**: Criptografia de senhas com PBKDF2/SHA-512 e sessões seguras com tokens
-- **Persistência**: Arquivo `database.sqlite` com modo WAL ativo e suporte a backup JSON/CSV
+- **Persistência**: Arquivo `dados/banco.db` com modo WAL ativo e suporte a backup JSON/CSV

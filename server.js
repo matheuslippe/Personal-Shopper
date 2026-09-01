@@ -10,7 +10,11 @@ const crypto = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+const DATA_DIR = path.join(__dirname, 'dados');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+const DB_PATH = path.join(DATA_DIR, 'banco.db');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // --- DATABASE INITIALIZATION & MIGRATIONS ---
