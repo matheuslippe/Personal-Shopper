@@ -67,14 +67,15 @@ async function runTests() {
 
   // 5. Create Custom Category
   let newCatId = null;
+  const dynamicCatName = `Hospedagem Viagem ${Date.now()}`;
   await assert('Criação de categoria personalizada', async () => {
     const res = await fetch(`${BASE_URL}/api/categories`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ name: 'Hospedagem & Hotel', color: '#ec4899' })
+      body: JSON.stringify({ name: dynamicCatName, color: '#ec4899' })
     });
     const data = await res.json();
-    if (res.status !== 201 || !data.id) throw new Error('Falha ao criar categoria');
+    if (res.status !== 201 || !data.id) throw new Error(data.error || 'Falha ao criar categoria');
     newCatId = data.id;
   });
 
