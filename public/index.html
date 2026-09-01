@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Assessoria Express - Gestão de Vendas e Financeiro</title>
+  <meta name="description" content="Sistema de Gestão para Assessoria de Compras (Personal Shopper) e Finanças Pessoais">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            },
+            primary: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="h-full text-slate-800 antialiased font-sans flex flex-col selection:bg-indigo-500 selection:text-white pb-20 md:pb-0">
+
+  <!-- ================= AUTH SCREEN (LOGIN) ================= -->
+  <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 transition-all duration-300">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-100 transform transition-all">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 mb-3">
+          <i data-lucide="shopping-bag" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Assessoria Express</h1>
+        <p class="text-sm text-slate-500 mt-1">Gestão de Personal Shopper & Finanças</p>
+      </div>
+
+      <form id="login-form" class="space-y-4" onsubmit="app.handleLogin(event)">
+        <div id="login-error" class="hidden p-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl"></div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Usuário</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="user" class="w-5 h-5"></i>
+            </div>
+            <input type="text" id="login-username" value="admin" required
+              class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              placeholder="Digite seu usuário">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Senha</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="lock" class="w-5 h-5"></i>
+            </div>
+            <input type="password" id="login-password" value="admin123" required
+              class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              placeholder="Digite sua senha">
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Padrão inicial: <span class="font-mono text-slate-600">admin</span> / <span class="font-mono text-slate-600">admin123</span></p>
+        </div>
+
+        <button type="submit" id="btn-login-submit"
+          class="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold rounded-xl shadow-lg shadow-indigo-200 transition-all">
+          <span>Acessar Painel</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MAIN APP WRAPPER ================= -->
+  <div id="main-app" class="hidden flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="hidden md:flex md:w-64 flex-col bg-white border-r border-slate-200 shadow-sm z-30 select-none">
+      <!-- Brand Logo -->
+      <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-100">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h2 class="font-bold text-slate-900 leading-tight">Assessoria Pro</h2>
+          <span class="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">Personal Shopper</span>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="p-4 space-y-2">
+        <button onclick="app.openOrderModal()" class="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>Novo Pedido / Assessoria</span>
+        </button>
+        <button onclick="app.openExpenseModal()" class="w-full flex items-center justify-center gap-2 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs rounded-xl transition-all">
+          <i data-lucide="receipt" class="w-4 h-4"></i>
+          <span>Lançar Gasto Pessoal</span>
+        </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+        <button onclick="app.switchTab('overview')" data-nav="overview" class="nav-link active w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span>Visão Geral</span>
+        </button>
+        <button onclick="app.switchTab('sales')" data-nav="sales" class="nav-link w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+          <div class="flex items-center gap-3">
+            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+            <span>Vendas & Assessorias</span>
+          </div>
+          <span id="badge-sales-pending" class="hidden text-xs bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="app.switchTab('expenses')" data-nav="expenses" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+          <i data-lucide="wallet" class="w-5 h-5"></i>
+          <span>Financeiro Pessoal</span>
+        </button>
+        <button onclick="app.switchTab('settings')" data-nav="settings" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+          <i data-lucide="sliders" class="w-5 h-5"></i>
+          <span>Categorias & Ajustes</span>
+        </button>
+      </nav>
+
+      <!-- User footer -->
+      <div class="p-4 border-t border-slate-100 bg-slate-50/50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold text-xs" id="user-avatar">
+              AD
+            </div>
+            <div class="overflow-hidden">
+              <p class="text-xs font-semibold text-slate-800 truncate" id="user-display">admin</p>
+              <p class="text-[10px] text-slate-400">Online</p>
+            </div>
+          </div>
+          <button onclick="app.handleLogout()" title="Sair" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MOBILE TOP BAR -->
+    <header class="md:hidden flex items-center justify-between px-4 h-14 bg-white border-b border-slate-200 sticky top-0 z-40">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+          <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+        </div>
+        <span class="font-bold text-slate-900 text-base">Assessoria Express</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="app.openOrderModal()" class="p-2 bg-indigo-600 text-white rounded-lg active:scale-95 shadow-sm" title="Novo Pedido">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
+        <button onclick="app.handleLogout()" class="p-2 text-slate-500 hover:text-rose-600 rounded-lg" title="Sair">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLLABLE CONTENT AREA -->
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-slate-50">
+
+      <!-- TOP MONTH & COMMISSION TICKER HEADER -->
+      <div class="bg-white border-b border-slate-200 px-4 py-3 sm:px-8 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-xs">
+        <div class="flex items-center gap-2">
+          <h1 id="tab-title" class="text-xl font-bold text-slate-900">Visão Geral</h1>
+          <span id="tab-subtitle" class="text-xs text-slate-400 hidden sm:inline-block">| Resumo consolidado de faturamento e despesas</span>
+        </div>
+
+        <!-- Month Navigation Selector -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">
+          <button onclick="app.changeMonth(-1)" class="p-1.5 hover:bg-white rounded-lg transition-colors" title="Mês Anterior">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <span id="current-month-label" class="px-3 min-w-[110px] text-center capitalize">Setembro 2026</span>
+          <button onclick="app.changeMonth(1)" class="p-1.5 hover:bg-white rounded-lg transition-colors" title="Próximo Mês">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1: VISÃO GERAL (DASHBOARD CONSOLIDADO) -->
+      <div id="view-overview" class="view-tab p-4 sm:p-8 space-y-6">
+        <!-- 4 Top Cards (Comissões, Despesas, Saldo Líquido, Peças Vendidas) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1: Comissões Recebidas (Pago) -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Comissões Recebidas</span>
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="trending-up" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h3 id="stat-paid-comm" class="text-2xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
+              <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                <span id="stat-pieces-sold" class="font-bold text-slate-700">0</span> peças vendidas no mês
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 2: Despesas Pessoais -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Gastos Pessoais</span>
+              <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <i data-lucide="trending-down" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h3 id="stat-total-expenses" class="text-2xl font-black text-slate-900 tracking-tight">R$ 0,00</h3>
+              <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                <span id="stat-expenses-count" class="font-bold text-slate-700">0</span> lançamentos
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 3: Saldo Líquido Real (Receitas - Despesas) -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Saldo Líquido Real</span>
+              <div id="stat-net-icon-wrap" class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <i data-lucide="scale" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h3 id="stat-net-balance" class="text-2xl font-black text-indigo-600 tracking-tight">R$ 0,00</h3>
+              <p id="stat-net-hint" class="text-xs text-slate-500 mt-1 font-medium">O que sobra no seu bolso</p>
+            </div>
+          </div>
+
+          <!-- Card 4: A Receber (Pendentes + Atrasados) -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">A Receber / Cobrar</span>
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="alert-circle" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="mt-4">
+              <h3 id="stat-to-receive" class="text-2xl font-black text-amber-600 tracking-tight">R$ 0,00</h3>
+              <div class="flex items-center gap-2 mt-1 text-[11px]">
+                <span class="text-amber-700 font-medium"><span id="stat-pending-val">R$ 0</span> pend.</span>
+                <span class="text-slate-300">•</span>
+                <span class="text-rose-600 font-medium"><span id="stat-overdue-val">R$ 0</span> atras.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attention Box: Pendentes & Atrasados precisando de atenção -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div>
+              <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Pedidos que precisam de atenção (Cobrança)</h2>
+            </div>
+            <button onclick="app.switchTab('sales', { status: 'pendente' })" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+              <span>Ver todos os pedidos</span>
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <div id="attention-orders-list" class="space-y-2">
+            <!-- Rendered dynamically -->
+            <div class="text-center py-6 text-slate-400 text-xs">Carregando pedidos pendentes...</div>
+          </div>
+        </div>
+
+        <!-- Charts: 6 Months Trend & Financial Distribution -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Monthly Trend Bar Chart (2 cols) -->
+          <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Comparativo Mensal (Comissões x Gastos)</h2>
+              <span class="text-xs text-slate-400">Últimos 6 meses</span>
+            </div>
+            <div class="h-64 relative">
+              <canvas id="chart-monthly-trend"></canvas>
+            </div>
+          </div>
+
+          <!-- Quick Shortcuts & Mini Stats (1 col) -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3">Ações Rápidas</h2>
+              <div class="space-y-2.5">
+                <button onclick="app.openOrderModal()" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-100 transition-all text-left group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                      <i data-lucide="plus" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs font-bold text-slate-800 group-hover:text-indigo-700">Lançar Novo Pedido</p>
+                      <p class="text-[10px] text-slate-400">Calcular comissão por peça</p>
+                    </div>
+                  </div>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-indigo-600"></i>
+                </button>
+
+                <button onclick="app.openExpenseModal()" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-rose-50 border border-slate-100 hover:border-rose-100 transition-all text-left group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center">
+                      <i data-lucide="receipt" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs font-bold text-slate-800 group-hover:text-rose-700">Lançar Despesa Diária</p>
+                      <p class="text-[10px] text-slate-400">Alimentação, banheiro, outros</p>
+                    </div>
+                  </div>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-rose-600"></i>
+                </button>
+
+                <button onclick="app.exportBackup()" class="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-100 transition-all text-left group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                      <i data-lucide="download" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <p class="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Exportar Backup dos Dados</p>
+                      <p class="text-[10px] text-slate-400">Baixar cópia de segurança em JSON</p>
+                    </div>
+                  </div>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-emerald-600"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Commission Info Callout -->
+            <div class="mt-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-center gap-3">
+              <i data-lucide="tag" class="w-5 h-5 text-indigo-600 shrink-0"></i>
+              <p class="text-xs text-indigo-900 leading-snug">
+                Taxa de comissão padrão configurada: <b id="dashboard-commission-rate" class="text-indigo-700">R$ 10,00</b> por peça.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: VENDAS / ASSESSORIAS -->
+      <div id="view-sales" class="view-tab hidden p-4 sm:p-8 space-y-6">
+        <!-- Sales Quick Metrics -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase text-emerald-600">Comissões Pagas</span>
+            <h4 id="sales-stat-paid" class="text-xl font-bold text-slate-900 mt-1">R$ 0,00</h4>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase text-amber-600">Comissões Pendentes</span>
+            <h4 id="sales-stat-pending" class="text-xl font-bold text-slate-900 mt-1">R$ 0,00</h4>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase text-rose-600">Comissões Atrasadas</span>
+            <h4 id="sales-stat-overdue" class="text-xl font-bold text-slate-900 mt-1">R$ 0,00</h4>
+          </div>
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <span class="text-[11px] font-semibold uppercase text-indigo-600">Total de Peças</span>
+            <h4 id="sales-stat-pieces" class="text-xl font-bold text-slate-900 mt-1">0 peças</h4>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <!-- Search by Client or Description -->
+            <div class="relative flex-1">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </div>
+              <input type="text" id="sales-filter-search" oninput="app.debounceFilterOrders()"
+                class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                placeholder="Buscar por cliente, peça ou observação...">
+            </div>
+
+            <!-- Buttons: New Order + Export CSV -->
+            <div class="flex items-center gap-2">
+              <button onclick="app.exportOrdersCSV()" class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Exportar</span> CSV
+              </button>
+              <button onclick="app.openOrderModal()" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Novo Pedido</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Secondary Filters: Status Tabs + Supplier + Date -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <!-- Status Filter Pills -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
+              <button onclick="app.setSalesStatusFilter('todos')" data-status-btn="todos" class="status-tab-btn active px-3 py-1.5 rounded-lg transition-all">Todos</button>
+              <button onclick="app.setSalesStatusFilter('pendente')" data-status-btn="pendente" class="status-tab-btn px-3 py-1.5 rounded-lg transition-all text-amber-700">Pendentes</button>
+              <button onclick="app.setSalesStatusFilter('atrasado')" data-status-btn="atrasado" class="status-tab-btn px-3 py-1.5 rounded-lg transition-all text-rose-700">Atrasados</button>
+              <button onclick="app.setSalesStatusFilter('pago')" data-status-btn="pago" class="status-tab-btn px-3 py-1.5 rounded-lg transition-all text-emerald-700">Pagos</button>
+            </div>
+
+            <!-- Optional Supplier and Custom Date Filter -->
+            <div class="flex items-center gap-2">
+              <input type="text" id="sales-filter-supplier" oninput="app.debounceFilterOrders()"
+                class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 w-36 sm:w-44 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="Filtrar fornecedor...">
+              <button onclick="app.clearSalesFilters()" class="text-xs text-slate-400 hover:text-slate-600 px-2 py-1" title="Limpar Filtros">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Table / List Container -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="px-4 py-3.5">Status</th>
+                  <th class="px-4 py-3.5">Cliente</th>
+                  <th class="px-4 py-3.5">Peças / Descrição</th>
+                  <th class="px-4 py-3.5">Fornecedor</th>
+                  <th class="px-4 py-3.5 text-center">Qtd</th>
+                  <th class="px-4 py-3.5 text-right">Comissão Total</th>
+                  <th class="px-4 py-3.5">Data Pedido</th>
+                  <th class="px-4 py-3.5 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="orders-table-body" class="divide-y divide-slate-100">
+                <!-- Orders rendered here dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="orders-empty-state" class="hidden p-12 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="package-open" class="w-6 h-6"></i>
+            </div>
+            <p class="text-sm font-semibold text-slate-700">Nenhum pedido encontrado</p>
+            <p class="text-xs text-slate-400 mt-1">Ajuste seus filtros ou clique em "Novo Pedido" para cadastrar.</p>
+          </div>
+        </div>
+
+        <!-- Top Clients Ranking & Item Types Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Ranking de Clientes -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Top Clientes que Mais Compraram</h3>
+              </div>
+              <span class="text-xs text-slate-400">No mês selecionado</span>
+            </div>
+            <div id="top-clients-list" class="space-y-2.5">
+              <!-- Top clients dynamic -->
+            </div>
+          </div>
+
+          <!-- Categorias de Peças (Tênis, Roupa, Blusa, Outro) -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-500"></i>
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Vendas por Tipo de Peça</h3>
+              </div>
+              <span class="text-xs text-slate-400">Proporção de Peças</span>
+            </div>
+            <div class="h-56 relative flex items-center justify-center">
+              <canvas id="chart-item-types"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: FINANCEIRO PESSOAL -->
+      <div id="view-expenses" class="view-tab hidden p-4 sm:p-8 space-y-6">
+        <!-- Expenses Quick Metrics -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold uppercase tracking-wider text-rose-500">Total Gasto no Mês</span>
+            <h3 id="expenses-stat-total" class="text-2xl font-black text-slate-900 mt-2">R$ 0,00</h3>
+            <p class="text-xs text-slate-400 mt-1">Soma de todas as despesas lançadas</p>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <span class="text-xs font-semibold uppercase tracking-wider text-indigo-500">Saldo Líquido Real</span>
+            <h3 id="expenses-stat-net" class="text-2xl font-black text-indigo-600 mt-2">R$ 0,00</h3>
+            <p class="text-xs text-slate-400 mt-1">Comissões recebidas menos despesas</p>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Categorias Ativas</span>
+              <h3 id="expenses-stat-cats" class="text-2xl font-black text-slate-900 mt-2">0</h3>
+            </div>
+            <button onclick="app.switchTab('settings')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 mt-2">
+              <span>Gerenciar Categorias</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar for Expenses -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div class="relative flex-1">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="search" class="w-4 h-4"></i>
+              </div>
+              <input type="text" id="expenses-filter-search" oninput="app.debounceFilterExpenses()"
+                class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                placeholder="Buscar descrição do gasto...">
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="app.exportExpensesCSV()" class="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-all">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Exportar</span> CSV
+              </button>
+              <button onclick="app.openExpenseModal()" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Nova Despesa</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Category Filter Badges -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-slate-100 text-xs" id="expenses-category-filters">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Charts: Distribution by Category & Comparison -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Donut Chart by Category -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Gastos por Categoria</h3>
+              <span class="text-xs text-slate-400">Proporção</span>
+            </div>
+            <div class="h-56 relative flex items-center justify-center">
+              <canvas id="chart-expense-categories"></canvas>
+            </div>
+          </div>
+
+          <!-- Expenses List / Table (2 cols) -->
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Lançamentos de Gastos</h3>
+              <span id="expenses-count-badge" class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">0 lançamentos</span>
+            </div>
+
+            <div class="overflow-x-auto flex-1">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th class="px-4 py-3">Data</th>
+                    <th class="px-4 py-3">Categoria</th>
+                    <th class="px-4 py-3">Descrição</th>
+                    <th class="px-4 py-3 text-right">Valor</th>
+                    <th class="px-4 py-3 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-table-body" class="divide-y divide-slate-100">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+
+            <div id="expenses-empty-state" class="hidden p-8 text-center">
+              <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                <i data-lucide="receipt" class="w-5 h-5"></i>
+              </div>
+              <p class="text-xs font-semibold text-slate-700">Nenhuma despesa neste período</p>
+              <p class="text-[11px] text-slate-400">Clique em "Nova Despesa" para registrar alimentação, banheiro, etc.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 4: CATEGORIAS & AJUSTES -->
+      <div id="view-settings" class="view-tab hidden p-4 sm:p-8 space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- Section 1: Gerenciar Categorias de Despesas -->
+          <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Categorias de Despesas</h3>
+                <p class="text-xs text-slate-500">Crie ou edite categorias personalizadas com cores identificadoras.</p>
+              </div>
+              <button onclick="app.openCategoryModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Nova Categoria</span>
+              </button>
+            </div>
+
+            <div id="categories-management-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Section 2: Configuração da Assessoria & Segurança -->
+          <div class="space-y-6">
+            <!-- Taxa de Comissão Padrão -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <i data-lucide="tag" class="w-5 h-5 text-indigo-600"></i>
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Taxa de Comissão</h3>
+              </div>
+              <p class="text-xs text-slate-500 leading-relaxed">
+                Defina o valor padrão cobrado por peça (ex: R$ 9,00 ou R$ 10,00). Este valor será sugerido automaticamente em novos pedidos.
+              </p>
+              <form onsubmit="app.saveCommissionSetting(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Valor por Peça (R$)</label>
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">R$</span>
+                    <input type="number" id="setting-default-commission" step="0.50" min="0" required
+                      class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  </div>
+                </div>
+                <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition-all shadow-sm">
+                  Salvar Taxa Padrão
+                </button>
+              </form>
+            </div>
+
+            <!-- Troca de Senha -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <i data-lucide="shield-check" class="w-5 h-5 text-indigo-600"></i>
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Segurança / Senha</h3>
+              </div>
+              <form onsubmit="app.handleChangePassword(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Senha Atual</label>
+                  <input type="password" id="pw-current" required
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nova Senha</label>
+                  <input type="password" id="pw-new" required minlength="4"
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs rounded-xl transition-all shadow-sm">
+                  Atualizar Senha
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-40 px-2 shadow-lg select-none">
+      <button onclick="app.switchTab('overview')" data-nav-m="overview" class="flex flex-col items-center justify-center flex-1 py-1 text-indigo-600 font-semibold text-[10px] transition-all">
+        <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+        <span>Geral</span>
+      </button>
+      <button onclick="app.switchTab('sales')" data-nav-m="sales" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all relative">
+        <i data-lucide="shopping-bag" class="w-5 h-5 mb-0.5"></i>
+        <span>Vendas</span>
+        <span id="badge-sales-pending-m" class="hidden absolute top-1 right-5 w-2 h-2 bg-amber-500 rounded-full"></span>
+      </button>
+
+      <!-- Central FAB on mobile for fast input -->
+      <button onclick="app.openQuickActionsModal()" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-300 active:scale-95 transition-all">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+      </button>
+
+      <button onclick="app.switchTab('expenses')" data-nav-m="expenses" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
+        <i data-lucide="wallet" class="w-5 h-5 mb-0.5"></i>
+        <span>Gastos</span>
+      </button>
+      <button onclick="app.switchTab('settings')" data-nav-m="settings" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
+        <i data-lucide="sliders" class="w-5 h-5 mb-0.5"></i>
+        <span>Ajustes</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- MODAL: NOVO / EDITAR PEDIDO (ASSESSORIA) -->
+  <div id="modal-order" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 id="modal-order-title" class="text-sm font-bold text-slate-900">Novo Pedido / Assessoria</h3>
+            <p class="text-[11px] text-slate-400">Preencha os dados da intermediação</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-order')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/50">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body Form -->
+      <form id="order-form" onsubmit="app.saveOrder(event)" class="p-6 space-y-4 overflow-y-auto flex-1">
+        <input type="hidden" id="order-id" value="">
+
+        <!-- Client Name + Datalist Suggestions -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nome do Cliente *</label>
+          <input type="text" id="order-client" list="clients-datalist" required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            placeholder="Ex: Carlos Silva">
+          <datalist id="clients-datalist"></datalist>
+        </div>
+
+        <!-- Supplier (Optional) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Fornecedor <span class="text-slate-400 font-normal">(Opcional)</span>
+          </label>
+          <input type="text" id="order-supplier" list="suppliers-datalist"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            placeholder="Ex: Atacado Brás SP, Import Tênis...">
+          <datalist id="suppliers-datalist"></datalist>
+        </div>
+
+        <!-- Item Type & Description -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tipo de Peça *</label>
+            <select id="order-item-type" required
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500">
+              <option value="tenis">👟 Tênis</option>
+              <option value="roupa">👕 Roupa</option>
+              <option value="blusa">🧥 Blusa</option>
+              <option value="outro">📦 Outro</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Descrição da Peça / Detalhes *</label>
+            <input type="text" id="order-items-desc" required
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              placeholder="Ex: Nike Air Force Branco tam 41">
+          </div>
+        </div>
+
+        <!-- Quantity & Commission Calculation Box -->
+        <div class="p-3.5 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Qtd de Peças *</label>
+              <input type="number" id="order-qty" min="1" value="1" required oninput="app.recalcOrderTotal()"
+                class="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-800 text-center focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Comissão / Peça (R$) *</label>
+              <input type="number" id="order-commission-unit" step="0.50" min="0" value="10" required oninput="app.recalcOrderTotal()"
+                class="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-800 text-center focus:ring-2 focus:ring-indigo-500">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-indigo-100/80">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-900">Total da Comissão:</span>
+            <span id="order-commission-total-preview" class="text-base font-black text-indigo-700">R$ 10,00</span>
+          </div>
+        </div>
+
+        <!-- Status Selection (3 visual buttons) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Status do Pagamento *</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="order-status" value="pendente" class="peer sr-only" checked onchange="app.onOrderStatusRadioChange('pendente')">
+              <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 peer-checked:text-amber-800 text-xs font-bold text-slate-600 transition-all">
+                🟡 Pendente
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="order-status" value="atrasado" class="peer sr-only" onchange="app.onOrderStatusRadioChange('atrasado')">
+              <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-rose-500 peer-checked:bg-rose-50 peer-checked:text-rose-800 text-xs font-bold text-slate-600 transition-all">
+                🔴 Atrasado
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="order-status" value="pago" class="peer sr-only" onchange="app.onOrderStatusRadioChange('pago')">
+              <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-emerald-500 peer-checked:bg-emerald-50 peer-checked:text-emerald-800 text-xs font-bold text-slate-600 transition-all">
+                🟢 Pago
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Dates (Order date & Payment date) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Data do Pedido *</label>
+            <input type="date" id="order-date" required
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div id="order-payment-date-wrap">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Data do Pagamento</label>
+            <input type="date" id="order-payment-date"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Observações Livres</label>
+          <textarea id="order-notes" rows="2"
+            class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            placeholder="Ex: Pagou Pix, rastreio, detalhes de entrega..."></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="app.closeModal('modal-order')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 rounded-xl">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all">
+            Salvar Pedido
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NOVA / EDITAR DESPESA PESSOAL -->
+  <div id="modal-expense" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+            <i data-lucide="receipt" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 id="modal-expense-title" class="text-sm font-bold text-slate-900">Nova Despesa Pessoal</h3>
+            <p class="text-[11px] text-slate-400">Controle de gastos diários</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-expense')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/50">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="expense-form" onsubmit="app.saveExpense(event)" class="p-6 space-y-4">
+        <input type="hidden" id="expense-id" value="">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Categoria *</label>
+          <div class="flex items-center gap-2">
+            <select id="expense-category-id" required
+              class="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500">
+              <!-- Rendered dynamically -->
+            </select>
+            <button type="button" onclick="app.openCategoryModal()" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs" title="Criar Nova Categoria">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Descrição do Gasto *</label>
+          <input type="text" id="expense-desc" required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-rose-500 focus:bg-white"
+            placeholder="Ex: Almoço no Brás, Banheiro Shopping, Passagem...">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor (R$) *</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">R$</span>
+              <input type="number" id="expense-amount" step="0.01" min="0.01" required
+                class="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-rose-500 focus:bg-white"
+                placeholder="0,00">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Data *</label>
+            <input type="date" id="expense-date" required
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-rose-500">
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="app.closeModal('modal-expense')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 rounded-xl">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-rose-200 transition-all">
+            Salvar Despesa
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GERENCIAR / CRIAR CATEGORIA -->
+  <div id="modal-category" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+            <i data-lucide="tag" class="w-4 h-4"></i>
+          </div>
+          <h3 id="modal-cat-title" class="text-sm font-bold text-slate-900">Nova Categoria de Despesa</h3>
+        </div>
+        <button onclick="app.closeModal('modal-category')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="category-form" onsubmit="app.saveCategory(event)" class="p-6 space-y-4">
+        <input type="hidden" id="category-id" value="">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nome da Categoria *</label>
+          <input type="text" id="category-name" required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+            placeholder="Ex: Hospedagem, Café, Farmácia...">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-2">Cor de Identificação *</label>
+          <div class="flex items-center gap-3">
+            <input type="color" id="category-color-picker" value="#6366f1"
+              class="w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white">
+            <div class="flex flex-wrap gap-2" id="color-presets">
+              <button type="button" onclick="app.selectCategoryColor('#f97316')" class="w-6 h-6 rounded-full bg-orange-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#10b981')" class="w-6 h-6 rounded-full bg-emerald-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#06b6d4')" class="w-6 h-6 rounded-full bg-cyan-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#6366f1')" class="w-6 h-6 rounded-full bg-indigo-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#ec4899')" class="w-6 h-6 rounded-full bg-pink-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#8b5cf6')" class="w-6 h-6 rounded-full bg-purple-500"></button>
+              <button type="button" onclick="app.selectCategoryColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="app.closeModal('modal-category')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
+            Salvar Categoria
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: AÇÕES RÁPIDAS MOBILE -->
+  <div id="modal-quick-actions" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+    <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-5 border border-slate-100 space-y-3 animate-in slide-in-from-bottom duration-200">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">Ação Rápida</h3>
+        <button onclick="app.closeModal('modal-quick-actions')" class="p-1 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <button onclick="app.closeModal('modal-quick-actions'); app.openOrderModal();" class="w-full flex items-center gap-3 p-3.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 rounded-2xl font-semibold text-xs text-left transition-all">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <p class="font-bold">Novo Pedido / Assessoria</p>
+          <p class="text-[10px] text-indigo-600 font-normal">Registrar peças e calcular comissão</p>
+        </div>
+      </button>
+
+      <button onclick="app.closeModal('modal-quick-actions'); app.openExpenseModal();" class="w-full flex items-center gap-3 p-3.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-2xl font-semibold text-xs text-left transition-all">
+        <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center">
+          <i data-lucide="receipt" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <p class="font-bold">Lançar Gasto Pessoal</p>
+          <p class="text-[10px] text-rose-600 font-normal">Alimentação, banheiro, transporte...</p>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toast-container" class="fixed bottom-20 md:bottom-6 right-4 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Application Logic -->
+  <script src="/app.js"></script>
+</body>
+</html>

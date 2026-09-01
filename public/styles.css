@@ -1,0 +1,79 @@
+/* Custom styling for Assessoria Express */
+
+/* Custom Smooth Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Sidebar Navigation link styles */
+.nav-link {
+  color: #475569;
+}
+.nav-link:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+.nav-link.active {
+  background-color: #eef2ff;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+/* Status Filter Buttons */
+.status-tab-btn {
+  color: #64748b;
+}
+.status-tab-btn.active {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile bottom nav active states */
+[data-nav-m].active {
+  color: #4f46e5 !important;
+  font-weight: 700 !important;
+}
+
+/* Status Badges */
+.badge-status-pago {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.badge-status-atrasado {
+  background-color: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+.badge-status-pendente {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.view-tab:not(.hidden) {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Fast touch response */
+button, input, select, textarea {
+  touch-action: manipulation;
+}

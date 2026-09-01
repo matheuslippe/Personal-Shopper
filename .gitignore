@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Database (uncomment if you want local database to remain private)
+# database.sqlite
+# database.sqlite-wal
+# database.sqlite-shm
+
+# Environment & Temp
+.env
+.DS_Store
+Thumbs.db
+*.log
