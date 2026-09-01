@@ -209,6 +209,73 @@ async function runTests() {
     if (resCsv.status !== 200) throw new Error('Erro no CSV de pedidos');
   });
 
+  // 12. Complete Multi-Tenant User Isolation Test
+  await assert('Isolamento completo de dados entre contas distintas (Multi-Tenant)', async () => {
+    const stamp = Date.now();
+    const user1Name = `shopper_a_${stamp}`;
+    const user2Name = `shopper_b_${stamp}`;
+
+    // Register User 1
+    const r1 = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user1Name, password: 'password123', confirmPassword: 'password123' })
+    });
+    const d1 = await r1.json();
+    const token1 = d1.token;
+
+    // Register User 2
+    const r2 = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user2Name, password: 'password123', confirmPassword: 'password123' })
+    });
+    const d2 = await r2.json();
+    const token2 = d2.token;
+
+    // User 1 creates an order
+    await fetch(`${BASE_URL}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}` },
+      body: JSON.stringify({
+        client_name: 'Cliente Exclusivo do User 1',
+        items: [{ item_type: 'tenis', items_desc: 'Tênis Alpha', quantity: 2, commission_unit: 10 }],
+        order_date: '2026-09-01',
+        status: 'pendente'
+      })
+    });
+
+    // User 2 lists orders -> MUST BE 0 orders!
+    const ordersRes2 = await fetch(`${BASE_URL}/api/orders`, {
+      headers: { 'Authorization': `Bearer ${token2}` }
+    });
+    const ordersUser2 = await ordersRes2.json();
+    if (ordersUser2.length !== 0) {
+      throw new Error(`Isolamento falhou: User 2 viu ${ordersUser2.length} pedidos do User 1`);
+    }
+
+    // User 2 creates an order for themselves
+    await fetch(`${BASE_URL}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token2}` },
+      body: JSON.stringify({
+        client_name: 'Cliente Exclusivo do User 2',
+        items: [{ item_type: 'roupa', items_desc: 'Camisa Beta', quantity: 1, commission_unit: 10 }],
+        order_date: '2026-09-01',
+        status: 'pendente'
+      })
+    });
+
+    // Check User 1 orders -> MUST BE 1 order (only User 1's)
+    const ordersRes1 = await fetch(`${BASE_URL}/api/orders`, {
+      headers: { 'Authorization': `Bearer ${token1}` }
+    });
+    const ordersUser1 = await ordersRes1.json();
+    if (ordersUser1.length !== 1 || ordersUser1[0].client_name !== 'Cliente Exclusivo do User 1') {
+      throw new Error(`Isolamento falhou: User 1 viu dados incorretos: ${JSON.stringify(ordersUser1)}`);
+    }
+  });
+
   console.log(`\n========================================`);
   console.log(`🎯 RESULTADO DOS TESTES: ${passed} PASSOU | ${failed} FALHOU`);
   console.log(`========================================\n`);

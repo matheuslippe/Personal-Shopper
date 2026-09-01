@@ -86,6 +86,36 @@ function verifyPassword(password, salt, hash) {
   return checkHash === hash;
 }
 
+async function seedUserDefaults(userId) {
+  if (!userId) return;
+  // Seed default categories if user has none
+  const cats = await queryAll("SELECT id FROM categories WHERE user_id = ?", [userId]);
+  if (cats.length === 0) {
+    const defaultCategories = [
+      { name: 'Alimentação', color: '#f97316' },
+      { name: 'Investimento', color: '#10b981' },
+      { name: 'Banheiro', color: '#06b6d4' },
+      { name: 'Transporte', color: '#6366f1' },
+      { name: 'Outros', color: '#8b5cf6' }
+    ];
+    for (const cat of defaultCategories) {
+      await queryRun(
+        "INSERT INTO categories (user_id, name, color, is_default, created_at) VALUES (?, ?, ?, 1, ?)",
+        [userId, cat.name, cat.color, new Date().toISOString()]
+      );
+    }
+  }
+
+  // Seed default settings if user has none
+  const setting = await queryGet("SELECT value FROM settings WHERE user_id = ? AND key = 'default_commission'", [userId]);
+  if (!setting) {
+    await queryRun(
+      "INSERT INTO settings (user_id, key, value, updated_at) VALUES (?, 'default_commission', '10.00', ?)",
+      [userId, new Date().toISOString()]
+    );
+  }
+}
+
 // Initialize tables and default seed data
 async function initDatabase() {
   // Create tables if not exist
@@ -111,7 +141,9 @@ async function initDatabase() {
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      key TEXT NOT NULL,
       value TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -120,7 +152,8 @@ async function initDatabase() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      name TEXT NOT NULL,
       color TEXT NOT NULL,
       is_default INTEGER DEFAULT 0,
       created_at TEXT NOT NULL
@@ -130,6 +163,7 @@ async function initDatabase() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL DEFAULT 1,
       client_name TEXT NOT NULL,
       supplier TEXT DEFAULT '',
       items_desc TEXT NOT NULL,
@@ -147,15 +181,10 @@ async function initDatabase() {
     )
   `);
 
-  try {
-    await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'");
-  } catch (e) {
-    // Coluna já existe
-  }
-
   await db.execute(`
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL DEFAULT 1,
       category_id INTEGER NOT NULL,
       description TEXT NOT NULL,
       amount REAL NOT NULL,
@@ -166,46 +195,80 @@ async function initDatabase() {
     )
   `);
 
-  // Seed default admin user: admin / admin123
-  const checkUser = await queryGet("SELECT * FROM users WHERE username = ?", ['admin']);
-  if (!checkUser) {
+  // Run migrations for existing databases to ensure user_id is present
+  try { await db.execute("ALTER TABLE orders ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+  // Check if settings table in existing SQLite has old global PRIMARY KEY on key and migrate if needed
+  try {
+    const tableInfo = await queryGet("SELECT sql FROM sqlite_master WHERE type='table' AND name='settings'");
+    if (tableInfo && tableInfo.sql && tableInfo.sql.includes('key TEXT PRIMARY KEY')) {
+      await db.execute('PRAGMA foreign_keys = OFF;');
+      await db.execute('DROP TABLE IF EXISTS settings_v2;');
+      await db.execute(`
+        CREATE TABLE settings_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL DEFAULT 1,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+      await db.execute(`INSERT OR IGNORE INTO settings_v2 (user_id, key, value, updated_at) SELECT COALESCE(user_id, 1), key, value, updated_at FROM settings`);
+      await db.execute(`DROP TABLE settings`);
+      await db.execute(`ALTER TABLE settings_v2 RENAME TO settings`);
+      await db.execute('PRAGMA foreign_keys = ON;');
+      console.log('✔ Tabela settings migrada para multi-tenant!');
+    } else {
+      try { await db.execute("ALTER TABLE settings ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+    }
+  } catch (err) {
+    try { await db.execute("ALTER TABLE settings ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+  }
+
+  // Check if categories table in existing SQLite has old global UNIQUE(name) constraint and migrate if needed
+  try {
+    const tableInfo = await queryGet("SELECT sql FROM sqlite_master WHERE type='table' AND name='categories'");
+    if (tableInfo && tableInfo.sql && tableInfo.sql.includes('name TEXT UNIQUE')) {
+      await db.execute('PRAGMA foreign_keys = OFF;');
+      await db.execute('DROP TABLE IF EXISTS categories_v2;');
+      await db.execute(`
+        CREATE TABLE categories_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL DEFAULT 1,
+          name TEXT NOT NULL,
+          color TEXT NOT NULL,
+          is_default INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL
+        )
+      `);
+      await db.execute(`INSERT OR IGNORE INTO categories_v2 (id, user_id, name, color, is_default, created_at) SELECT id, COALESCE(user_id, 1), name, color, is_default, created_at FROM categories`);
+      await db.execute(`DROP TABLE categories`);
+      await db.execute(`ALTER TABLE categories_v2 RENAME TO categories`);
+      await db.execute('PRAGMA foreign_keys = ON;');
+      console.log('✔ Tabela categories migrada para multi-tenant!');
+    } else {
+      try { await db.execute("ALTER TABLE categories ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+    }
+  } catch (err) {
+    try { await db.execute("ALTER TABLE categories ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+  }
+
+  // Ensure default admin user: admin / admin123
+  let adminUser = await queryGet("SELECT * FROM users WHERE username = ?", ['admin']);
+  if (!adminUser) {
     const { hash, salt } = hashPassword('admin123');
     const now = new Date().toISOString();
-    await queryRun(
+    const res = await queryRun(
       "INSERT INTO users (username, password_hash, salt, created_at) VALUES (?, ?, ?, ?)",
       ['admin', hash, salt, now]
     );
+    adminUser = { id: res.lastInsertRowid, username: 'admin' };
     console.log('✔ Usuário padrão criado: admin / admin123');
   }
 
-  // Default commission rate: R$ 10.00
-  const checkRate = await queryGet("SELECT * FROM settings WHERE key = ?", ['default_commission']);
-  if (!checkRate) {
-    const now = new Date().toISOString();
-    await queryRun(
-      "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
-      ['default_commission', '10.00', now]
-    );
-  }
-
-  // Default categories: Alimentação, Investimento, Banheiro
-  const defaultCategories = [
-    { name: 'Alimentação', color: '#f97316' },
-    { name: 'Investimento', color: '#10b981' },
-    { name: 'Banheiro', color: '#06b6d4' },
-    { name: 'Transporte', color: '#6366f1' },
-    { name: 'Outros', color: '#8b5cf6' }
-  ];
-
-  for (const cat of defaultCategories) {
-    const existing = await queryGet("SELECT * FROM categories WHERE name = ?", [cat.name]);
-    if (!existing) {
-      await queryRun(
-        "INSERT INTO categories (name, color, is_default, created_at) VALUES (?, ?, 1, ?)",
-        [cat.name, cat.color, new Date().toISOString()]
-      );
-    }
-  }
+  // Seed default categories and settings for admin
+  await seedUserDefaults(adminUser.id);
 
   // Seed sample initial data if database has no orders
   const orderCountRow = await queryGet("SELECT COUNT(*) as count FROM orders");
@@ -390,6 +453,9 @@ const server = http.createServer(async (req, res) => {
 
       const userId = insertResult.lastInsertRowid;
 
+      // Seed default categories & settings for the new user
+      await seedUserDefaults(userId);
+
       // Create session valid for 30 days
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -419,6 +485,9 @@ const server = http.createServer(async (req, res) => {
         return sendError(res, 401, 'Usuário ou senha incorretos.');
       }
 
+      // Ensure user defaults exist
+      await seedUserDefaults(user.id);
+
       // Create session valid for 30 days
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -442,6 +511,8 @@ const server = http.createServer(async (req, res) => {
       if (!session && pathname !== '/api/auth/check-status') {
         return sendError(res, 401, 'Sessão expirada ou não autenticado.');
       }
+
+      const userId = session.user_id;
 
       // Check auth status
       if (pathname === '/api/auth/me' && req.method === 'GET') {
@@ -467,38 +538,44 @@ const server = http.createServer(async (req, res) => {
           return sendError(res, 400, 'A nova senha deve ter pelo menos 4 caracteres.');
         }
 
-        const user = await queryGet("SELECT * FROM users WHERE id = ?", [session.user_id]);
+        const user = await queryGet("SELECT * FROM users WHERE id = ?", [userId]);
         if (!verifyPassword(currentPassword, user.salt, user.password_hash)) {
           return sendError(res, 400, 'Senha atual incorreta.');
         }
 
         const { hash, salt } = hashPassword(newPassword);
-        await queryRun("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", [hash, salt, session.user_id]);
+        await queryRun("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", [hash, salt, userId]);
         return sendJson(res, 200, { message: 'Senha atualizada com sucesso!' });
       }
 
-      // Settings GET / POST
+      // Settings GET / POST (isolated by user_id)
       if (pathname === '/api/settings') {
         if (req.method === 'GET') {
-          const rows = await queryAll("SELECT key, value FROM settings");
+          const rows = await queryAll("SELECT key, value FROM settings WHERE user_id = ?", [userId]);
           const settings = {};
           rows.forEach(r => settings[r.key] = r.value);
+          if (!settings.default_commission) settings.default_commission = '10.00';
           return sendJson(res, 200, settings);
         }
         if (req.method === 'POST') {
           const body = await parseJsonBody(req);
           const now = new Date().toISOString();
           for (const [key, value] of Object.entries(body)) {
-            await queryRun(`
-              INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-            `, [key, String(value), now]);
+            const existing = await queryGet("SELECT id FROM settings WHERE user_id = ? AND key = ?", [userId, key]);
+            if (existing) {
+              await queryRun("UPDATE settings SET value = ?, updated_at = ? WHERE id = ?", [String(value), now, existing.id]);
+            } else {
+              await queryRun("INSERT INTO settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)", [userId, key, String(value), now]);
+            }
           }
-          return sendJson(res, 200, { message: 'Configurações salvas com sucesso!' });
+          const rows = await queryAll("SELECT key, value FROM settings WHERE user_id = ?", [userId]);
+          const settings = {};
+          rows.forEach(r => settings[r.key] = r.value);
+          return sendJson(res, 200, settings);
         }
       }
 
-      // --- ORDERS (VENDAS / ASSESSORIAS) CRUD ---
+      // --- ORDERS (VENDAS / ASSESSORIAS) CRUD (isolated by user_id) ---
       if (pathname === '/api/orders' && req.method === 'GET') {
         const status = searchParams.get('status');
         const search = searchParams.get('search');
@@ -507,8 +584,8 @@ const server = http.createServer(async (req, res) => {
         const endDate = searchParams.get('endDate');
         const month = searchParams.get('month'); // YYYY-MM
 
-        let query = "SELECT * FROM orders WHERE 1=1";
-        const params = [];
+        let query = "SELECT * FROM orders WHERE user_id = ?";
+        const params = [userId];
 
         if (status && status !== 'todos') {
           query += " AND status = ?";
@@ -548,7 +625,7 @@ const server = http.createServer(async (req, res) => {
         const id = parseInt(orderIdMatch[1], 10);
 
         if (req.method === 'GET') {
-          const order = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
+          const order = await queryGet("SELECT * FROM orders WHERE id = ? AND user_id = ?", [id, userId]);
           if (!order) return sendError(res, 404, 'Pedido não encontrado.');
           return sendJson(res, 200, formatOrderRow(order));
         }
@@ -608,7 +685,7 @@ const server = http.createServer(async (req, res) => {
           await queryRun(`
             UPDATE orders 
             SET client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
           `, [
             client_name.trim(),
             (supplier || '').trim(),
@@ -623,15 +700,16 @@ const server = http.createServer(async (req, res) => {
             (notes || '').trim(),
             itemsJsonStr,
             now,
-            id
+            id,
+            userId
           ]);
 
-          const updated = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
+          const updated = await queryGet("SELECT * FROM orders WHERE id = ? AND user_id = ?", [id, userId]);
           return sendJson(res, 200, formatOrderRow(updated));
         }
 
         if (req.method === 'DELETE') {
-          await queryRun("DELETE FROM orders WHERE id = ?", [id]);
+          await queryRun("DELETE FROM orders WHERE id = ? AND user_id = ?", [id, userId]);
           return sendJson(res, 200, { message: 'Pedido excluído com sucesso!' });
         }
       }
@@ -658,10 +736,10 @@ const server = http.createServer(async (req, res) => {
         await queryRun(`
           UPDATE orders 
           SET status = ?, payment_date = ?, updated_at = ? 
-          WHERE id = ?
-        `, [status, pDate, now, id]);
+          WHERE id = ? AND user_id = ?
+        `, [status, pDate, now, id, userId]);
 
-        const updated = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
+        const updated = await queryGet("SELECT * FROM orders WHERE id = ? AND user_id = ?", [id, userId]);
         return sendJson(res, 200, formatOrderRow(updated));
       }
 
@@ -717,9 +795,10 @@ const server = http.createServer(async (req, res) => {
         }
 
         const result = await queryRun(`
-          INSERT INTO orders (client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
+          userId,
           client_name.trim(),
           (supplier || '').trim(),
           summaryDesc,
@@ -736,14 +815,15 @@ const server = http.createServer(async (req, res) => {
           now
         ]);
 
-        const newOrder = await queryGet("SELECT * FROM orders WHERE id = ?", [result.lastInsertRowid]);
+        const newOrder = await queryGet("SELECT * FROM orders WHERE id = ? AND user_id = ?", [result.lastInsertRowid, userId]);
         return sendJson(res, 201, formatOrderRow(newOrder));
       }
 
-      // --- CATEGORIES CRUD ---
+      // --- CATEGORIES CRUD (isolated by user_id) ---
       if (pathname === '/api/categories') {
         if (req.method === 'GET') {
-          const categories = await queryAll("SELECT * FROM categories ORDER BY is_default DESC, name ASC");
+          await seedUserDefaults(userId);
+          const categories = await queryAll("SELECT * FROM categories WHERE user_id = ? ORDER BY is_default DESC, name ASC", [userId]);
           return sendJson(res, 200, categories);
         }
         if (req.method === 'POST') {
@@ -754,18 +834,18 @@ const server = http.createServer(async (req, res) => {
             return sendError(res, 400, 'Nome e cor da categoria são obrigatórios.');
           }
 
-          const existing = await queryGet("SELECT * FROM categories WHERE LOWER(name) = LOWER(?)", [name.trim()]);
+          const existing = await queryGet("SELECT * FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?)", [userId, name.trim()]);
           if (existing) {
             return sendError(res, 400, 'Já existe uma categoria com esse nome.');
           }
 
           const now = new Date().toISOString();
           const result = await queryRun(
-            "INSERT INTO categories (name, color, is_default, created_at) VALUES (?, ?, 0, ?)",
-            [name.trim(), color.trim(), now]
+            "INSERT INTO categories (user_id, name, color, is_default, created_at) VALUES (?, ?, ?, 0, ?)",
+            [userId, name.trim(), color.trim(), now]
           );
 
-          const newCat = await queryGet("SELECT * FROM categories WHERE id = ?", [result.lastInsertRowid]);
+          const newCat = await queryGet("SELECT * FROM categories WHERE id = ? AND user_id = ?", [result.lastInsertRowid, userId]);
           return sendJson(res, 201, newCat);
         }
       }
@@ -779,22 +859,22 @@ const server = http.createServer(async (req, res) => {
           const { name, color } = body;
           if (!name || !color) return sendError(res, 400, 'Nome e cor são obrigatórios.');
 
-          await queryRun("UPDATE categories SET name = ?, color = ? WHERE id = ?", [name.trim(), color.trim(), id]);
-          const updated = await queryGet("SELECT * FROM categories WHERE id = ?", [id]);
+          await queryRun("UPDATE categories SET name = ?, color = ? WHERE id = ? AND user_id = ?", [name.trim(), color.trim(), id, userId]);
+          const updated = await queryGet("SELECT * FROM categories WHERE id = ? AND user_id = ?", [id, userId]);
           return sendJson(res, 200, updated);
         }
 
         if (req.method === 'DELETE') {
-          const used = await queryGet("SELECT COUNT(*) as count FROM expenses WHERE category_id = ?", [id]);
+          const used = await queryGet("SELECT COUNT(*) as count FROM expenses WHERE category_id = ? AND user_id = ?", [id, userId]);
           if (used && Number(used.count) > 0) {
             return sendError(res, 400, `Não é possível excluir esta categoria pois ela possui ${used.count} despesa(s) vinculada(s).`);
           }
-          await queryRun("DELETE FROM categories WHERE id = ?", [id]);
+          await queryRun("DELETE FROM categories WHERE id = ? AND user_id = ?", [id, userId]);
           return sendJson(res, 200, { message: 'Categoria excluída com sucesso!' });
         }
       }
 
-      // --- EXPENSES (FINANCEIRO PESSOAL) CRUD ---
+      // --- EXPENSES (FINANCEIRO PESSOAL) CRUD (isolated by user_id) ---
       if (pathname === '/api/expenses' && req.method === 'GET') {
         const categoryId = searchParams.get('categoryId');
         const search = searchParams.get('search');
@@ -806,9 +886,9 @@ const server = http.createServer(async (req, res) => {
           SELECT e.*, c.name as category_name, c.color as category_color 
           FROM expenses e 
           JOIN categories c ON e.category_id = c.id 
-          WHERE 1=1
+          WHERE e.user_id = ?
         `;
-        const params = [];
+        const params = [userId];
 
         if (categoryId && categoryId !== 'todas') {
           query += " AND e.category_id = ?";
@@ -845,8 +925,8 @@ const server = http.createServer(async (req, res) => {
             SELECT e.*, c.name as category_name, c.color as category_color 
             FROM expenses e 
             JOIN categories c ON e.category_id = c.id 
-            WHERE e.id = ?
-          `, [id]);
+            WHERE e.id = ? AND e.user_id = ?
+          `, [id, userId]);
           if (!expense) return sendError(res, 404, 'Despesa não encontrada.');
           return sendJson(res, 200, expense);
         }
@@ -863,27 +943,28 @@ const server = http.createServer(async (req, res) => {
           await queryRun(`
             UPDATE expenses 
             SET category_id = ?, description = ?, amount = ?, expense_date = ?, updated_at = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
           `, [
             parseInt(category_id, 10),
             description.trim(),
             parseFloat(amount),
             expense_date,
             now,
-            id
+            id,
+            userId
           ]);
 
           const updated = await queryGet(`
             SELECT e.*, c.name as category_name, c.color as category_color 
             FROM expenses e 
             JOIN categories c ON e.category_id = c.id 
-            WHERE e.id = ?
-          `, [id]);
+            WHERE e.id = ? AND e.user_id = ?
+          `, [id, userId]);
           return sendJson(res, 200, updated);
         }
 
         if (req.method === 'DELETE') {
-          await queryRun("DELETE FROM expenses WHERE id = ?", [id]);
+          await queryRun("DELETE FROM expenses WHERE id = ? AND user_id = ?", [id, userId]);
           return sendJson(res, 200, { message: 'Despesa excluída com sucesso!' });
         }
       }
@@ -898,9 +979,10 @@ const server = http.createServer(async (req, res) => {
 
         const now = new Date().toISOString();
         const result = await queryRun(`
-          INSERT INTO expenses (category_id, description, amount, expense_date, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO expenses (user_id, category_id, description, amount, expense_date, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [
+          userId,
           parseInt(category_id, 10),
           description.trim(),
           parseFloat(amount),
@@ -913,45 +995,45 @@ const server = http.createServer(async (req, res) => {
           SELECT e.*, c.name as category_name, c.color as category_color 
           FROM expenses e 
           JOIN categories c ON e.category_id = c.id 
-          WHERE e.id = ?
-        `, [result.lastInsertRowid]);
+          WHERE e.id = ? AND e.user_id = ?
+        `, [result.lastInsertRowid, userId]);
         return sendJson(res, 201, newExp);
       }
 
-      // --- DASHBOARDS ANALYTICS & CONSOLIDATED METRICS ---
+      // --- DASHBOARDS ANALYTICS & CONSOLIDATED METRICS (isolated by user_id) ---
       if (pathname === '/api/dashboard/overview' && req.method === 'GET') {
         const currentMonth = searchParams.get('month') || new Date().toISOString().slice(0, 7);
 
         const paidCommissionRow = await queryGet(`
           SELECT COALESCE(SUM(commission_total), 0) as total, COALESCE(SUM(quantity), 0) as pieces
           FROM orders 
-          WHERE status = 'pago' AND order_date LIKE ?
-        `, [`${currentMonth}%`]);
+          WHERE user_id = ? AND status = 'pago' AND order_date LIKE ?
+        `, [userId, `${currentMonth}%`]);
 
         const pendingCommissionRow = await queryGet(`
           SELECT COALESCE(SUM(commission_total), 0) as total, COUNT(*) as count 
           FROM orders 
-          WHERE status = 'pendente' AND order_date LIKE ?
-        `, [`${currentMonth}%`]);
+          WHERE user_id = ? AND status = 'pendente' AND order_date LIKE ?
+        `, [userId, `${currentMonth}%`]);
 
         const overdueCommissionRow = await queryGet(`
           SELECT COALESCE(SUM(commission_total), 0) as total, COUNT(*) as count 
           FROM orders 
-          WHERE status = 'atrasado' AND order_date LIKE ?
-        `, [`${currentMonth}%`]);
+          WHERE user_id = ? AND status = 'atrasado' AND order_date LIKE ?
+        `, [userId, `${currentMonth}%`]);
 
         const attentionOrders = await queryAll(`
           SELECT * FROM orders 
-          WHERE status IN ('pendente', 'atrasado') 
+          WHERE user_id = ? AND status IN ('pendente', 'atrasado') 
           ORDER BY status DESC, order_date ASC 
           LIMIT 10
-        `);
+        `, [userId]);
 
         const expensesRow = await queryGet(`
           SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count 
           FROM expenses 
-          WHERE expense_date LIKE ?
-        `, [`${currentMonth}%`]);
+          WHERE user_id = ? AND expense_date LIKE ?
+        `, [userId, `${currentMonth}%`]);
 
         const totalPaidCommission = paidCommissionRow ? Number(paidCommissionRow.total) : 0;
         const totalExpenses = expensesRow ? Number(expensesRow.total) : 0;
@@ -967,14 +1049,14 @@ const server = http.createServer(async (req, res) => {
           const commRow = await queryGet(`
             SELECT COALESCE(SUM(commission_total), 0) as total 
             FROM orders 
-            WHERE status = 'pago' AND order_date LIKE ?
-          `, [`${mKey}%`]);
+            WHERE user_id = ? AND status = 'pago' AND order_date LIKE ?
+          `, [userId, `${mKey}%`]);
 
           const expRow = await queryGet(`
             SELECT COALESCE(SUM(amount), 0) as total 
             FROM expenses 
-            WHERE expense_date LIKE ?
-          `, [`${mKey}%`]);
+            WHERE user_id = ? AND expense_date LIKE ?
+          `, [userId, `${mKey}%`]);
 
           const cTotal = commRow ? Number(commRow.total) : 0;
           const eTotal = expRow ? Number(expRow.total) : 0;
@@ -999,7 +1081,7 @@ const server = http.createServer(async (req, res) => {
           totalExpenses: totalExpenses,
           expensesCount: expensesRow ? Number(expensesRow.count) : 0,
           netBalance: netBalance,
-          attentionOrders,
+          attentionOrders: attentionOrders.map(formatOrderRow),
           monthlyTrend
         });
       }
@@ -1015,11 +1097,11 @@ const server = http.createServer(async (req, res) => {
             SUM(CASE WHEN status = 'pago' THEN commission_total ELSE 0 END) as paid_commission,
             SUM(commission_total) as total_commission
           FROM orders 
-          WHERE order_date LIKE ?
+          WHERE user_id = ? AND order_date LIKE ?
           GROUP BY client_name 
           ORDER BY total_pieces DESC, total_commission DESC 
           LIMIT 10
-        `, [`${currentMonth}%`]);
+        `, [userId, `${currentMonth}%`]);
 
         const itemsByType = await queryAll(`
           SELECT 
@@ -1028,9 +1110,9 @@ const server = http.createServer(async (req, res) => {
             SUM(quantity) as pieces_count, 
             SUM(commission_total) as total_commission 
           FROM orders 
-          WHERE order_date LIKE ?
+          WHERE user_id = ? AND order_date LIKE ?
           GROUP BY item_type
-        `, [`${currentMonth}%`]);
+        `, [userId, `${currentMonth}%`]);
 
         const statusBreakdown = await queryAll(`
           SELECT 
@@ -1039,9 +1121,9 @@ const server = http.createServer(async (req, res) => {
             SUM(quantity) as pieces, 
             SUM(commission_total) as total 
           FROM orders 
-          WHERE order_date LIKE ?
+          WHERE user_id = ? AND order_date LIKE ?
           GROUP BY status
-        `, [`${currentMonth}%`]);
+        `, [userId, `${currentMonth}%`]);
 
         return sendJson(res, 200, {
           topClients,
@@ -1061,36 +1143,37 @@ const server = http.createServer(async (req, res) => {
             COALESCE(SUM(e.amount), 0) as total, 
             COUNT(e.id) as count 
           FROM categories c 
-          LEFT JOIN expenses e ON e.category_id = c.id AND e.expense_date LIKE ?
+          LEFT JOIN expenses e ON e.category_id = c.id AND e.user_id = ? AND e.expense_date LIKE ?
+          WHERE c.user_id = ?
           GROUP BY c.id, c.name, c.color 
           HAVING total > 0
           ORDER BY total DESC
-        `, [`${currentMonth}%`]);
+        `, [userId, `${currentMonth}%`, userId]);
 
         return sendJson(res, 200, {
           byCategory
         });
       }
 
-      // Export Backup (JSON)
+      // Export Backup (JSON - isolated by user_id)
       if (pathname === '/api/export/backup' && req.method === 'GET') {
-        const orders = await queryAll("SELECT * FROM orders");
-        const expenses = await queryAll("SELECT * FROM expenses");
-        const categories = await queryAll("SELECT * FROM categories");
-        const settings = await queryAll("SELECT * FROM settings");
+        const orders = await queryAll("SELECT * FROM orders WHERE user_id = ?", [userId]);
+        const expenses = await queryAll("SELECT * FROM expenses WHERE user_id = ?", [userId]);
+        const categories = await queryAll("SELECT * FROM categories WHERE user_id = ?", [userId]);
+        const settings = await queryAll("SELECT * FROM settings WHERE user_id = ?", [userId]);
 
         return sendJson(res, 200, {
           exported_at: new Date().toISOString(),
-          orders,
+          orders: orders.map(formatOrderRow),
           expenses,
           categories,
           settings
         });
       }
 
-      // Export Orders CSV
+      // Export Orders CSV (isolated by user_id)
       if (pathname === '/api/export/orders.csv' && req.method === 'GET') {
-        const orders = await queryAll("SELECT * FROM orders ORDER BY order_date DESC");
+        const orders = await queryAll("SELECT * FROM orders WHERE user_id = ? ORDER BY order_date DESC", [userId]);
         let csv = 'ID;Cliente;Fornecedor;Descrição Peça;Tipo;Quantidade;Comissão Unit (R$);Comissão Total (R$);Data Pedido;Data Pagamento;Status;Observações\n';
         for (const o of orders) {
           const row = [
@@ -1117,14 +1200,15 @@ const server = http.createServer(async (req, res) => {
         return res.end('\uFEFF' + csv);
       }
 
-      // Export Expenses CSV
+      // Export Expenses CSV (isolated by user_id)
       if (pathname === '/api/export/expenses.csv' && req.method === 'GET') {
         const expenses = await queryAll(`
           SELECT e.*, c.name as category_name 
           FROM expenses e 
           JOIN categories c ON e.category_id = c.id 
+          WHERE e.user_id = ?
           ORDER BY e.expense_date DESC
-        `);
+        `, [userId]);
 
         let csv = 'ID;Data;Categoria;Descrição;Valor (R$)\n';
         for (const e of expenses) {
