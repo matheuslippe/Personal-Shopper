@@ -49,6 +49,32 @@ async function queryRun(sql, args = []) {
   };
 }
 
+function formatOrderRow(order) {
+  if (!order) return null;
+  let items = [];
+  try {
+    if (order.items_json && typeof order.items_json === 'string' && order.items_json.trim()) {
+      items = JSON.parse(order.items_json);
+    }
+  } catch (e) {}
+  if (!Array.isArray(items) || items.length === 0) {
+    items = [{
+      item_type: order.item_type || 'tenis',
+      items_desc: order.items_desc || '',
+      quantity: Number(order.quantity) || 1,
+      commission_unit: Number(order.commission_unit) || 0,
+      commission_total: Number(order.commission_total) || 0
+    }];
+  }
+  return {
+    ...order,
+    quantity: Number(order.quantity) || 1,
+    commission_unit: Number(order.commission_unit) || 0,
+    commission_total: Number(order.commission_total) || 0,
+    items
+  };
+}
+
 // --- PASSWORD & CRYPTO HELPERS ---
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
@@ -115,10 +141,17 @@ async function initDatabase() {
       payment_date TEXT, -- YYYY-MM-DD
       status TEXT NOT NULL DEFAULT 'pendente', -- 'pendente', 'atrasado', 'pago'
       notes TEXT DEFAULT '',
+      items_json TEXT DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
   `);
+
+  try {
+    await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'");
+  } catch (e) {
+    // Coluna já existe
+  }
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS expenses (
@@ -453,7 +486,8 @@ const server = http.createServer(async (req, res) => {
         }
 
         query += " ORDER BY order_date DESC, id DESC";
-        const orders = await queryAll(query, params);
+        const rawOrders = await queryAll(query, params);
+        const orders = rawOrders.map(formatOrderRow);
         return sendJson(res, 200, orders);
       }
 
@@ -465,20 +499,52 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'GET') {
           const order = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
           if (!order) return sendError(res, 404, 'Pedido não encontrado.');
-          return sendJson(res, 200, order);
+          return sendJson(res, 200, formatOrderRow(order));
         }
 
         if (req.method === 'PUT') {
           const body = await parseJsonBody(req);
-          const { client_name, supplier, items_desc, item_type, quantity, commission_unit, order_date, payment_date, status, notes } = body;
+          const { client_name, supplier, order_date, payment_date, status, notes } = body;
 
-          if (!client_name || !items_desc || !item_type || !quantity || !commission_unit || !order_date || !status) {
-            return sendError(res, 400, 'Preencha todos os campos obrigatórios.');
+          let parsedItems = [];
+          if (Array.isArray(body.items) && body.items.length > 0) {
+            parsedItems = body.items.map(it => {
+              const q = Math.max(1, parseInt(it.quantity, 10) || 1);
+              const u = Math.max(0, parseFloat(it.commission_unit) || 0);
+              return {
+                item_type: it.item_type || 'tenis',
+                items_desc: (it.items_desc || '').trim(),
+                quantity: q,
+                commission_unit: u,
+                commission_total: q * u
+              };
+            }).filter(it => it.items_desc.length > 0);
           }
 
-          const qty = parseInt(quantity, 10) || 1;
-          const unit = parseFloat(commission_unit) || 0;
-          const total = qty * unit;
+          if (parsedItems.length === 0 && (body.items_desc || '').trim()) {
+            const q = Math.max(1, parseInt(body.quantity, 10) || 1);
+            const u = Math.max(0, parseFloat(body.commission_unit) || 0);
+            parsedItems = [{
+              item_type: body.item_type || 'tenis',
+              items_desc: (body.items_desc || '').trim(),
+              quantity: q,
+              commission_unit: u,
+              commission_total: q * u
+            }];
+          }
+
+          if (!client_name || parsedItems.length === 0 || !order_date || !status) {
+            return sendError(res, 400, 'Preencha o nome do cliente, data, status e pelo menos uma peça com descrição.');
+          }
+
+          const totalQty = parsedItems.reduce((acc, it) => acc + it.quantity, 0);
+          const totalComm = parsedItems.reduce((acc, it) => acc + it.commission_total, 0);
+          const avgCommUnit = totalQty > 0 ? (totalComm / totalQty) : 0;
+          const summaryDesc = parsedItems.map(it => `${it.quantity}x ${it.items_desc}`).join(' + ');
+          const distinctTypes = [...new Set(parsedItems.map(it => it.item_type))];
+          const mainType = distinctTypes.length === 1 ? distinctTypes[0] : (distinctTypes[0] || 'outro');
+          const itemsJsonStr = JSON.stringify(parsedItems);
+
           const now = new Date().toISOString();
 
           let pDate = payment_date || null;
@@ -490,26 +556,27 @@ const server = http.createServer(async (req, res) => {
 
           await queryRun(`
             UPDATE orders 
-            SET client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, updated_at = ?
+            SET client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, updated_at = ?
             WHERE id = ?
           `, [
             client_name.trim(),
             (supplier || '').trim(),
-            items_desc.trim(),
-            item_type,
-            qty,
-            unit,
-            total,
+            summaryDesc,
+            mainType,
+            totalQty,
+            avgCommUnit,
+            totalComm,
             order_date,
             pDate,
             status,
             (notes || '').trim(),
+            itemsJsonStr,
             now,
             id
           ]);
 
           const updated = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
-          return sendJson(res, 200, updated);
+          return sendJson(res, 200, formatOrderRow(updated));
         }
 
         if (req.method === 'DELETE') {
@@ -544,21 +611,53 @@ const server = http.createServer(async (req, res) => {
         `, [status, pDate, now, id]);
 
         const updated = await queryGet("SELECT * FROM orders WHERE id = ?", [id]);
-        return sendJson(res, 200, updated);
+        return sendJson(res, 200, formatOrderRow(updated));
       }
 
       // Create Order
       if (pathname === '/api/orders' && req.method === 'POST') {
         const body = await parseJsonBody(req);
-        const { client_name, supplier, items_desc, item_type, quantity, commission_unit, order_date, payment_date, status, notes } = body;
+        const { client_name, supplier, order_date, payment_date, status, notes } = body;
 
-        if (!client_name || !items_desc || !item_type || !quantity || !commission_unit || !order_date || !status) {
-          return sendError(res, 400, 'Preencha todos os campos obrigatórios do pedido.');
+        let parsedItems = [];
+        if (Array.isArray(body.items) && body.items.length > 0) {
+          parsedItems = body.items.map(it => {
+            const q = Math.max(1, parseInt(it.quantity, 10) || 1);
+            const u = Math.max(0, parseFloat(it.commission_unit) || 0);
+            return {
+              item_type: it.item_type || 'tenis',
+              items_desc: (it.items_desc || '').trim(),
+              quantity: q,
+              commission_unit: u,
+              commission_total: q * u
+            };
+          }).filter(it => it.items_desc.length > 0);
         }
 
-        const qty = parseInt(quantity, 10) || 1;
-        const unit = parseFloat(commission_unit) || 0;
-        const total = qty * unit;
+        if (parsedItems.length === 0 && (body.items_desc || '').trim()) {
+          const q = Math.max(1, parseInt(body.quantity, 10) || 1);
+          const u = Math.max(0, parseFloat(body.commission_unit) || 0);
+          parsedItems = [{
+            item_type: body.item_type || 'tenis',
+            items_desc: (body.items_desc || '').trim(),
+            quantity: q,
+            commission_unit: u,
+            commission_total: q * u
+          }];
+        }
+
+        if (!client_name || parsedItems.length === 0 || !order_date || !status) {
+          return sendError(res, 400, 'Preencha o nome do cliente, data, status e pelo menos uma peça com descrição.');
+        }
+
+        const totalQty = parsedItems.reduce((acc, it) => acc + it.quantity, 0);
+        const totalComm = parsedItems.reduce((acc, it) => acc + it.commission_total, 0);
+        const avgCommUnit = totalQty > 0 ? (totalComm / totalQty) : 0;
+        const summaryDesc = parsedItems.map(it => `${it.quantity}x ${it.items_desc}`).join(' + ');
+        const distinctTypes = [...new Set(parsedItems.map(it => it.item_type))];
+        const mainType = distinctTypes.length === 1 ? distinctTypes[0] : (distinctTypes[0] || 'outro');
+        const itemsJsonStr = JSON.stringify(parsedItems);
+
         const now = new Date().toISOString();
 
         let pDate = payment_date || null;
@@ -567,26 +666,27 @@ const server = http.createServer(async (req, res) => {
         }
 
         const result = await queryRun(`
-          INSERT INTO orders (client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO orders (client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           client_name.trim(),
           (supplier || '').trim(),
-          items_desc.trim(),
-          item_type,
-          qty,
-          unit,
-          total,
+          summaryDesc,
+          mainType,
+          totalQty,
+          avgCommUnit,
+          totalComm,
           order_date,
           pDate,
           status,
           (notes || '').trim(),
+          itemsJsonStr,
           now,
           now
         ]);
 
         const newOrder = await queryGet("SELECT * FROM orders WHERE id = ?", [result.lastInsertRowid]);
-        return sendJson(res, 201, newOrder);
+        return sendJson(res, 201, formatOrderRow(newOrder));
       }
 
       // --- CATEGORIES CRUD ---

@@ -104,6 +104,32 @@ async function runTests() {
     orderId = data.id;
   });
 
+  // 6.1 Create Order with MULTIPLE Items
+  let multiOrderId = null;
+  await assert('Cadastro de pedido com MÚLTIPLOS itens distintos por vez', async () => {
+    const res = await fetch(`${BASE_URL}/api/orders`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        client_name: 'Renata Albuquerque',
+        supplier: 'Distribuidora São Paulo',
+        items: [
+          { item_type: 'tenis', items_desc: 'Nike Dunk Low Panda (tam 38)', quantity: 2, commission_unit: 10.0 },
+          { item_type: 'blusa', items_desc: 'Moletom Canguru Preto G', quantity: 3, commission_unit: 10.0 },
+          { item_type: 'roupa', items_desc: 'Camisetas Algodão Básicas', quantity: 4, commission_unit: 9.0 }
+        ],
+        order_date: new Date().toISOString().split('T')[0],
+        status: 'pendente',
+        notes: 'Pedido com 3 itens diferentes totalizando 9 peças'
+      })
+    });
+    const data = await res.json();
+    if (res.status !== 201 || data.quantity !== 9 || data.commission_total !== 86 || !Array.isArray(data.items) || data.items.length !== 3) {
+      throw new Error(`Falha no pedido multi-item: total peças ${data.quantity}, comissão total ${data.commission_total}, itens count ${data.items ? data.items.length : 0}`);
+    }
+    multiOrderId = data.id;
+  });
+
   // 7. Quick Status Update
   await assert('Alteração rápida de status do pedido para "pago"', async () => {
     const res = await fetch(`${BASE_URL}/api/orders/${orderId}/status`, {

@@ -535,6 +535,7 @@ const app = {
         pendente: { label: 'Pendente', class: 'badge-status-pendente' }
       };
       const st = statusMap[o.status] || statusMap['pendente'];
+      const hasMultiItems = Array.isArray(o.items) && o.items.length > 1;
 
       return `
         <tr class="hover:bg-slate-50/80 transition-colors">
@@ -555,13 +556,33 @@ const app = {
 
           <!-- Item Description & Type Badge -->
           <td class="px-4 py-3">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="inline-block bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[10px]">
-                ${typeIcons[o.item_type] || o.item_type}
-              </span>
-              <span class="text-slate-700 font-medium">${this.escapeHtml(o.items_desc)}</span>
-            </div>
-            ${o.notes ? `<p class="text-[10px] text-slate-400 italic mt-0.5 truncate max-w-xs">Obs: ${this.escapeHtml(o.notes)}</p>` : ''}
+            ${hasMultiItems ? `
+              <div class="space-y-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-md text-[10px] border border-indigo-100">
+                    <i data-lucide="layers" class="w-3 h-3"></i>
+                    ${o.items.length} itens diferentes
+                  </span>
+                </div>
+                <div class="space-y-0.5 text-[11px] text-slate-700 font-medium">
+                  ${o.items.map(it => `
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-[10px]">${typeIcons[it.item_type] || it.item_type}</span>
+                      <span><b>${it.quantity}x</b> ${this.escapeHtml(it.items_desc)}</span>
+                      <span class="text-[10px] text-slate-400">(${this.formatCurrency(it.commission_total || (it.quantity * it.commission_unit))})</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : `
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="inline-block bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-md text-[10px]">
+                  ${typeIcons[o.item_type] || o.item_type}
+                </span>
+                <span class="text-slate-700 font-medium">${this.escapeHtml(o.items_desc)}</span>
+              </div>
+            `}
+            ${o.notes ? `<p class="text-[10px] text-slate-400 italic mt-1 truncate max-w-xs">Obs: ${this.escapeHtml(o.notes)}</p>` : ''}
           </td>
 
           <!-- Supplier -->
@@ -570,20 +591,24 @@ const app = {
           </td>
 
           <!-- Quantity -->
-          <td class="px-4 py-3 text-center font-bold text-slate-700 whitespace-nowrap">
-            ${o.quantity}
+          <td class="px-4 py-3 text-center whitespace-nowrap">
+            <span class="inline-block px-2.5 py-1 bg-slate-100 text-slate-800 font-black rounded-lg text-xs">
+              ${o.quantity}
+            </span>
           </td>
 
           <!-- Commission Total -->
           <td class="px-4 py-3 text-right whitespace-nowrap">
-            <span class="font-black text-slate-900">${this.formatCurrency(o.commission_total)}</span>
-            <p class="text-[10px] text-slate-400 font-normal">(${o.quantity}x ${this.formatCurrency(o.commission_unit)})</p>
+            <span class="font-black text-slate-900 text-sm">${this.formatCurrency(o.commission_total)}</span>
+            <p class="text-[10px] text-slate-400 font-normal">
+              ${hasMultiItems ? `Média: ${this.formatCurrency(o.commission_unit)}/peça` : `(${o.quantity}x ${this.formatCurrency(o.commission_unit)})`}
+            </p>
           </td>
 
           <!-- Order Date & Payment Date -->
           <td class="px-4 py-3 text-slate-500 whitespace-nowrap">
             <span>${this.formatDateBR(o.order_date)}</span>
-            ${o.payment_date ? `<p class="text-[10px] text-emerald-600 font-medium">Pago em ${this.formatDateBR(o.payment_date)}</p>` : ''}
+            ${o.payment_date ? `<p class="text-[10px] text-emerald-600 font-semibold">Pago em ${this.formatDateBR(o.payment_date)}</p>` : ''}
           </td>
 
           <!-- Action Buttons -->
@@ -655,7 +680,6 @@ const app = {
     const bgColors = (itemsByType || []).map(item => typeColors[item.item_type] || '#cbd5e1');
 
     if (data.length === 0) {
-      // Empty placeholder
       this.charts.itemTypes = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -741,7 +765,6 @@ const app = {
   },
 
   updateDatalists() {
-    // Unique clients and suppliers for autocomplete
     const clients = [...new Set(this.orders.map(o => o.client_name).filter(Boolean))];
     const suppliers = [...new Set(this.orders.map(o => o.supplier).filter(Boolean))];
 
@@ -752,7 +775,7 @@ const app = {
     if (sList) sList.innerHTML = suppliers.map(s => `<option value="${this.escapeHtml(s)}">`).join('');
   },
 
-  // --- ORDER MODAL (CREATE / EDIT) ---
+  // --- ORDER MODAL (CREATE / EDIT MULTI-ITEMS) ---
   openOrderModal(orderData = null) {
     const modal = document.getElementById('modal-order');
     const form = document.getElementById('order-form');
@@ -762,41 +785,57 @@ const app = {
     const idEl = document.getElementById('order-id');
     const clientEl = document.getElementById('order-client');
     const supplierEl = document.getElementById('order-supplier');
-    const typeEl = document.getElementById('order-item-type');
-    const descEl = document.getElementById('order-items-desc');
-    const qtyEl = document.getElementById('order-qty');
-    const commUnitEl = document.getElementById('order-commission-unit');
     const dateEl = document.getElementById('order-date');
     const pDateEl = document.getElementById('order-payment-date');
     const notesEl = document.getElementById('order-notes');
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const defaultComm = parseFloat(this.settings.default_commission || '10.00');
 
     if (orderData) {
       titleEl.textContent = 'Editar Pedido / Assessoria';
       idEl.value = orderData.id;
-      clientEl.value = orderData.client_name;
+      clientEl.value = orderData.client_name || '';
       supplierEl.value = orderData.supplier || '';
-      typeEl.value = orderData.item_type;
-      descEl.value = orderData.items_desc;
-      qtyEl.value = orderData.quantity;
-      commUnitEl.value = orderData.commission_unit;
-      dateEl.value = orderData.order_date;
+      dateEl.value = orderData.order_date || todayStr;
       pDateEl.value = orderData.payment_date || '';
       notesEl.value = orderData.notes || '';
-      this.setOrderStatusRadio(orderData.status);
+      this.setOrderStatusRadio(orderData.status || 'pendente');
+
+      if (Array.isArray(orderData.items) && orderData.items.length > 0) {
+        this.orderItems = orderData.items.map(it => ({
+          item_type: it.item_type || 'tenis',
+          items_desc: it.items_desc || '',
+          quantity: Math.max(1, parseInt(it.quantity, 10) || 1),
+          commission_unit: it.commission_unit !== undefined ? parseFloat(it.commission_unit) : defaultComm
+        }));
+      } else {
+        this.orderItems = [{
+          item_type: orderData.item_type || 'tenis',
+          items_desc: orderData.items_desc || '',
+          quantity: Math.max(1, parseInt(orderData.quantity, 10) || 1),
+          commission_unit: orderData.commission_unit !== undefined ? parseFloat(orderData.commission_unit) : defaultComm
+        }];
+      }
     } else {
       titleEl.textContent = 'Novo Pedido / Assessoria';
       idEl.value = '';
-      typeEl.value = 'tenis';
-      qtyEl.value = 1;
-      commUnitEl.value = this.settings.default_commission || '10.00';
+      clientEl.value = '';
+      supplierEl.value = '';
       dateEl.value = todayStr;
       pDateEl.value = '';
+      notesEl.value = '';
       this.setOrderStatusRadio('pendente');
+
+      this.orderItems = [{
+        item_type: 'tenis',
+        items_desc: '',
+        quantity: 1,
+        commission_unit: defaultComm
+      }];
     }
 
-    this.recalcOrderTotal();
+    this.renderOrderItems();
     modal.classList.remove('hidden');
     clientEl.focus();
     lucide.createIcons();
@@ -818,22 +857,172 @@ const app = {
     }
   },
 
+  syncOrderItemsFromDOM() {
+    const container = document.getElementById('order-items-container');
+    if (!container) return;
+    const cards = container.querySelectorAll('.order-item-card');
+    const updated = [];
+
+    cards.forEach(card => {
+      const typeEl = card.querySelector('.order-item-type');
+      const descEl = card.querySelector('.order-item-desc');
+      const qtyEl = card.querySelector('.order-item-qty');
+      const unitEl = card.querySelector('.order-item-unit');
+
+      if (typeEl && descEl && qtyEl && unitEl) {
+        updated.push({
+          item_type: typeEl.value,
+          items_desc: descEl.value,
+          quantity: Math.max(1, parseInt(qtyEl.value, 10) || 1),
+          commission_unit: Math.max(0, parseFloat(unitEl.value) || 0)
+        });
+      }
+    });
+
+    if (updated.length > 0) {
+      this.orderItems = updated;
+    }
+  },
+
+  addOrderItemRow() {
+    this.syncOrderItemsFromDOM();
+    const defaultComm = parseFloat(this.settings.default_commission || '10.00');
+    this.orderItems.push({
+      item_type: 'tenis',
+      items_desc: '',
+      quantity: 1,
+      commission_unit: defaultComm
+    });
+    this.renderOrderItems();
+
+    setTimeout(() => {
+      const descs = document.querySelectorAll('.order-item-desc');
+      if (descs.length > 0) {
+        descs[descs.length - 1].focus();
+      }
+    }, 50);
+  },
+
+  removeOrderItemRow(index) {
+    this.syncOrderItemsFromDOM();
+    if (this.orderItems.length <= 1) {
+      this.showToast('O pedido deve conter pelo menos 1 peça.', 'info');
+      return;
+    }
+    this.orderItems.splice(index, 1);
+    this.renderOrderItems();
+  },
+
+  renderOrderItems() {
+    const container = document.getElementById('order-items-container');
+    if (!container) return;
+
+    container.innerHTML = this.orderItems.map((item, idx) => {
+      const subtotal = (item.quantity || 1) * (item.commission_unit || 0);
+      const isOnlyOne = this.orderItems.length === 1;
+
+      return `
+        <div class="order-item-card p-3.5 bg-slate-50/90 hover:bg-slate-50 border border-slate-200 rounded-2xl space-y-3 transition-all">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 inline-flex items-center justify-center text-[10px] font-black">${idx + 1}</span>
+              Peça #${idx + 1}
+            </span>
+            ${!isOnlyOne ? `
+              <button type="button" onclick="app.removeOrderItemRow(${idx})" class="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all flex items-center gap-1 text-[11px] font-medium" title="Remover esta peça">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span class="text-[10px]">Remover</span>
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- Tipo & Descrição -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Tipo de Peça *</label>
+              <select class="order-item-type w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                <option value="tenis" ${item.item_type === 'tenis' ? 'selected' : ''}>👟 Tênis</option>
+                <option value="roupa" ${item.item_type === 'roupa' ? 'selected' : ''}>👕 Roupa</option>
+                <option value="blusa" ${item.item_type === 'blusa' ? 'selected' : ''}>🧥 Blusa</option>
+                <option value="outro" ${item.item_type === 'outro' ? 'selected' : ''}>📦 Outro</option>
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-semibold text-slate-600 mb-1">Descrição / Modelo / Tamanho *</label>
+              <input type="text" class="order-item-desc w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                placeholder="Ex: Nike Air Force Branco tam 41" value="${this.escapeHtml(item.items_desc)}" required>
+            </div>
+          </div>
+
+          <!-- Qtd + Comissão / Peça + Subtotal -->
+          <div class="grid grid-cols-3 gap-2.5 pt-2 border-t border-slate-200/60 items-center bg-white/70 p-2.5 rounded-xl border border-slate-100">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Qtd Peças</label>
+              <input type="number" min="1" value="${item.quantity || 1}" class="order-item-qty w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                oninput="app.recalcOrderTotal()" required>
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">Comissão / Peça</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center text-[10px] font-bold text-slate-400">R$</span>
+                <input type="number" step="0.50" min="0" value="${item.commission_unit !== undefined ? item.commission_unit : 10}" class="order-item-unit w-full pl-7 pr-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                  oninput="app.recalcOrderTotal()" required>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="block text-[10px] font-semibold text-slate-400">Subtotal</span>
+              <span class="order-item-subtotal text-xs font-black text-indigo-700">${this.formatCurrency(subtotal)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.recalcOrderTotal();
+    lucide.createIcons();
+  },
+
   recalcOrderTotal() {
-    const qty = parseInt(document.getElementById('order-qty').value, 10) || 0;
-    const unit = parseFloat(document.getElementById('order-commission-unit').value) || 0;
-    const total = qty * unit;
-    document.getElementById('order-commission-total-preview').textContent = this.formatCurrency(total);
+    const container = document.getElementById('order-items-container');
+    if (!container) return;
+
+    const cards = container.querySelectorAll('.order-item-card');
+    let totalPieces = 0;
+    let totalCommission = 0;
+
+    cards.forEach(card => {
+      const qtyInput = card.querySelector('.order-item-qty');
+      const unitInput = card.querySelector('.order-item-unit');
+      const subtotalEl = card.querySelector('.order-item-subtotal');
+
+      const qty = Math.max(1, parseInt(qtyInput ? qtyInput.value : 1, 10) || 1);
+      const unit = Math.max(0, parseFloat(unitInput ? unitInput.value : 0) || 0);
+      const subtotal = qty * unit;
+
+      if (subtotalEl) {
+        subtotalEl.textContent = this.formatCurrency(subtotal);
+      }
+
+      totalPieces += qty;
+      totalCommission += subtotal;
+    });
+
+    const piecesEl = document.getElementById('order-summary-pieces');
+    const itemsCountEl = document.getElementById('order-summary-items-count');
+    const previewEl = document.getElementById('order-commission-total-preview');
+
+    if (piecesEl) piecesEl.textContent = totalPieces;
+    if (itemsCountEl) itemsCountEl.textContent = cards.length;
+    if (previewEl) previewEl.textContent = this.formatCurrency(totalCommission);
   },
 
   async saveOrder(e) {
     e.preventDefault();
+    this.syncOrderItemsFromDOM();
+
     const id = document.getElementById('order-id').value;
     const client_name = document.getElementById('order-client').value.trim();
     const supplier = document.getElementById('order-supplier').value.trim();
-    const item_type = document.getElementById('order-item-type').value;
-    const items_desc = document.getElementById('order-items-desc').value.trim();
-    const quantity = parseInt(document.getElementById('order-qty').value, 10) || 1;
-    const commission_unit = parseFloat(document.getElementById('order-commission-unit').value) || 0;
     const order_date = document.getElementById('order-date').value;
     const payment_date = document.getElementById('order-payment-date').value || null;
     const notes = document.getElementById('order-notes').value.trim();
@@ -844,13 +1033,21 @@ const app = {
       if (r.checked) status = r.value;
     }
 
+    if (!client_name) {
+      this.showToast('Informe o nome do cliente.', 'error');
+      return;
+    }
+
+    const validItems = (this.orderItems || []).filter(it => it.items_desc && it.items_desc.trim().length > 0);
+    if (validItems.length === 0) {
+      this.showToast('Informe a descrição de pelo menos uma peça.', 'error');
+      return;
+    }
+
     const payload = {
       client_name,
       supplier,
-      item_type,
-      items_desc,
-      quantity,
-      commission_unit,
+      items: validItems,
       order_date,
       payment_date: status === 'pago' ? (payment_date || order_date) : null,
       status,
