@@ -1,4 +1,4 @@
-﻿const { queryGet } = require('../db/client');
+const { queryGet } = require('../db/client');
 const { cleanExpiredSessions } = require('./security');
 
 async function authenticate(req) {
@@ -21,7 +21,7 @@ async function authenticate(req) {
   if (!token) return null;
 
   const session = await queryGet(`
-    SELECT s.*, u.username, u.id as user_id 
+    SELECT s.*, u.username, u.role, u.assessor_id, u.id as user_id 
     FROM sessions s 
     JOIN users u ON s.user_id = u.id 
     WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')

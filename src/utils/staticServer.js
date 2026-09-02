@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const fs = require('fs');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
@@ -17,13 +17,17 @@ const MIME_TYPES = {
 };
 
 function serveStaticFile(pathname, res) {
-  let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
+  const normalized = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
+  const relative = normalized === '/' || normalized === '\\' ? 'index.html' : normalized.replace(/^[\\\/]+/, '');
+  let filePath = path.resolve(PUBLIC_DIR, relative);
 
+  // Strict boundary check: ensure resolved path is inside PUBLIC_DIR
   if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403);
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('Acesso Negado');
   }
 
+  // Fallback to index.html for SPA routing
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
     filePath = path.join(PUBLIC_DIR, 'index.html');
   }
@@ -39,7 +43,7 @@ function serveStaticFile(pathname, res) {
     });
     return res.end(content);
   } else {
-    res.writeHead(404);
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('Arquivo não encontrado');
   }
 }

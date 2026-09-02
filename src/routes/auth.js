@@ -93,7 +93,7 @@ async function handleAuthRoutes(pathname, req, res, session) {
       return sendError(res, 429, `Muitas tentativas de login incorretas. Tente novamente em ${rateCheck.retryAfterSeconds} segundos.`);
     }
 
-    const user = await queryGet("SELECT * FROM users WHERE username = ?", [username.trim()]);
+    const user = await queryGet("SELECT * FROM users WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))", [username.trim()]);
     if (!user || !verifyPassword(password, user.salt, user.password_hash)) {
       return sendError(res, 401, 'Usuário ou senha incorretos.');
     }
@@ -153,8 +153,8 @@ async function handleAuthRoutes(pathname, req, res, session) {
     const body = await parseJsonBody(req);
     const { currentPassword, newPassword } = body;
 
-    if (!currentPassword || !newPassword || newPassword.length < 8) {
-      return sendError(res, 400, 'A nova senha deve ter pelo menos 8 caracteres.');
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return sendError(res, 400, 'A nova senha deve ter pelo menos 6 caracteres.');
     }
 
     const user = await queryGet("SELECT * FROM users WHERE id = ?", [session.user_id]);

@@ -190,4 +190,28 @@ describe('Assessoria Express — Suíte de Testes Automatizados', () => {
     assert.equal(pubData.order.tracking_code, trackingCode);
     assert.equal(pubData.assessor.pix_key, '11999998888');
   });
+
+  test('9. Proteção contra Path Traversal no servidor estático', async () => {
+    const res = await fetch(`${BASE_URL}/../../package.json`);
+    // Should safely reject escape attempts or serve SPA index.html
+    assert.ok(res.status === 403 || res.status === 200);
+    if (res.status === 200) {
+      const text = await res.text();
+      assert.ok(text.includes('Assessoria Express'), 'Deve servir index.html e não vazar arquivos do sistema');
+    }
+  });
+
+  test('10. Login Case-Insensitive', async () => {
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: usernameA.toUpperCase(),
+        password: 'password123'
+      })
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.ok(data.token);
+  });
 });
