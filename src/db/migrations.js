@@ -23,12 +23,22 @@ async function seedUserDefaults(userId) {
   }
 
   // Seed default settings if user has none
-  const setting = await queryGet("SELECT value FROM settings WHERE user_id = ? AND key = 'default_commission'", [userId]);
-  if (!setting) {
-    await queryRun(
-      "INSERT INTO settings (user_id, key, value, updated_at) VALUES (?, 'default_commission', '10.00', ?)",
-      [userId, new Date().toISOString()]
-    );
+  const defaultSettings = [
+    { key: 'default_commission', value: '10.00' },
+    { key: 'schedule_mode', value: 'manual' }, // 'manual' ou 'automatico'
+    { key: 'schedule_daily_limit', value: '4' },
+    { key: 'schedule_work_days', value: '1,2,3,4,5' }, // Segunda a Sexta
+    { key: 'schedule_period_name', value: 'Manhã (06h às 14h)' }
+  ];
+
+  for (const s of defaultSettings) {
+    const existing = await queryGet("SELECT value FROM settings WHERE user_id = ? AND key = ?", [userId, s.key]);
+    if (!existing) {
+      await queryRun(
+        "INSERT INTO settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        [userId, s.key, s.value, new Date().toISOString()]
+      );
+    }
   }
 }
 
@@ -94,6 +104,9 @@ async function initDatabase() {
       notes TEXT DEFAULT '',
       items_json TEXT DEFAULT '[]',
       tracking_code TEXT,
+      scheduled_date TEXT, -- YYYY-MM-DD
+      scheduled_period TEXT DEFAULT 'Manhã (06h às 14h)',
+      acceptance_status TEXT DEFAULT 'agendado', -- 'aguardando_aceite', 'agendado', 'recusado'
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -120,6 +133,9 @@ async function initDatabase() {
   try { await db.execute("ALTER TABLE orders ADD COLUMN client_user_id INTEGER"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN tracking_code TEXT"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN scheduled_date TEXT"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN scheduled_period TEXT DEFAULT 'Manhã (06h às 14h)'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN acceptance_status TEXT DEFAULT 'agendado'"); } catch (e) {}
   try { await db.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
   try { await db.execute("ALTER TABLE settings ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
 

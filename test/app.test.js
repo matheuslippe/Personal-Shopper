@@ -214,4 +214,121 @@ describe('Assessoria Express — Suíte de Testes Automatizados', () => {
     const data = await res.json();
     assert.ok(data.token);
   });
+
+  test('11. Módulo de Agenda — Configurações e Resumo do Assessor', async () => {
+    // 1. Save schedule settings
+    const saveRes = await fetch(`${BASE_URL}/api/schedule/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userTokenA}` },
+      body: JSON.stringify({
+        schedule_mode: 'manual',
+        schedule_daily_limit: 3,
+        schedule_period_name: 'Manhã (06h às 13h)'
+      })
+    });
+    assert.equal(saveRes.status, 200);
+
+    // 2. Get summary
+    const sumRes = await fetch(`${BASE_URL}/api/schedule/summary?month=2026-09`, {
+      headers: { 'Authorization': `Bearer ${userTokenA}` }
+    });
+    assert.equal(sumRes.status, 200);
+    const sumData = await sumRes.json();
+    assert.equal(sumData.settings.schedule_mode, 'manual');
+    assert.equal(sumData.settings.schedule_daily_limit, 3);
+  });
+
+  test('12. Fluxo de Agendamento Manual e Aceite pelo Assessor', async () => {
+    // Register Client C
+    const clientUserC = `client_c_${stamp}`;
+    const meResA = await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${userTokenA}` } });
+    const meDataA = await meResA.json();
+    const assessorAId = meDataA.user.id;
+
+    const regRes = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: clientUserC,
+        password: 'password123',
+        role: 'cliente',
+        assessor_id: assessorAId
+      })
+    });
+    const regData = await regRes.json();
+    const tokenC = regData.token;
+
+    // Client C submits purchase request (in manual mode)
+    const reqRes = await fetch(`${BASE_URL}/api/client/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenC}` },
+      body: JSON.stringify({
+        supplier: 'Bras 25',
+        assessor_id: assessorAId,
+        items: [{ item_type: 'blusa', items_desc: 'Blazer Alfaiataria', quantity: 1 }]
+      })
+    });
+    assert.equal(reqRes.status, 201);
+    const reqData = await reqRes.json();
+    assert.equal(reqData.order.acceptance_status, 'aguardando_aceite');
+    const orderId = reqData.order.id;
+
+    // Assessor accepts and schedules date
+    const acceptRes = await fetch(`${BASE_URL}/api/orders/${orderId}/accept-schedule`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userTokenA}` },
+      body: JSON.stringify({
+        scheduled_date: '2026-09-10',
+        scheduled_period: 'Manhã (06h às 13h)'
+      })
+    });
+    assert.equal(acceptRes.status, 200);
+    const acceptData = await acceptRes.json();
+    assert.equal(acceptData.order.acceptance_status, 'agendado');
+    assert.equal(acceptData.order.scheduled_date, '2026-09-10');
+  });
+
+  test('13. Fluxo de Agendamento Automático de Data', async () => {
+    // Set schedule_mode to automatico
+    await fetch(`${BASE_URL}/api/schedule/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userTokenA}` },
+      body: JSON.stringify({
+        schedule_mode: 'automatico',
+        schedule_daily_limit: 5
+      })
+    });
+
+    // Register Client D
+    const clientUserD = `client_d_${stamp}`;
+    const meResA = await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${userTokenA}` } });
+    const assessorAId = (await meResA.json()).user.id;
+
+    const regRes = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: clientUserD,
+        password: 'password123',
+        role: 'cliente',
+        assessor_id: assessorAId
+      })
+    });
+    const tokenD = (await regRes.json()).token;
+
+    // Client D submits purchase request
+    const reqRes = await fetch(`${BASE_URL}/api/client/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenD}` },
+      body: JSON.stringify({
+        supplier: 'Bom Retiro',
+        assessor_id: assessorAId,
+        items: [{ item_type: 'tenis', items_desc: 'Air Jordan', quantity: 1 }]
+      })
+    });
+    assert.equal(reqRes.status, 201);
+    const reqData = await reqRes.json();
+    assert.equal(reqData.order.acceptance_status, 'agendado');
+    assert.ok(reqData.order.scheduled_date, 'Deve ter scheduled_date gerada automaticamente');
+  });
 });

@@ -10,6 +10,7 @@ const { handleDashboardRoutes } = require('./src/routes/dashboard');
 const { handleSettingsRoutes } = require('./src/routes/settings');
 const { handleExportRoutes } = require('./src/routes/export');
 const { handleClientRoutes } = require('./src/routes/client');
+const { handleScheduleRoutes } = require('./src/routes/schedule');
 const { serveStaticFile } = require('./src/utils/staticServer');
 const { sendError } = require('./src/utils/http');
 const logger = require('./src/utils/logger');
@@ -60,6 +61,10 @@ const server = http.createServer(async (req, res) => {
       // Orders Routes
       const ordersHandled = await handleOrderRoutes(pathname, req, res, session, searchParams);
       if (ordersHandled !== false) return;
+
+      // Schedule & Capacity Routes
+      const scheduleHandled = await handleScheduleRoutes(pathname, req, res, session, searchParams);
+      if (scheduleHandled !== false) return;
 
       // Categories Routes
       const categoriesHandled = await handleCategoryRoutes(pathname, req, res, session);

@@ -238,6 +238,13 @@
             </div>
             <span id="badge-sales-pending" class="hidden text-xs bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
           </button>
+          <button onclick="app.switchTab('schedule')" data-nav="schedule" class="nav-link w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+            <div class="flex items-center gap-3">
+              <i data-lucide="calendar" class="w-5 h-5"></i>
+              <span>Agenda de Compras</span>
+            </div>
+            <span id="badge-schedule-pending" class="hidden text-xs bg-amber-500 text-white font-black px-1.5 py-0.5 rounded-full">0</span>
+          </button>
           <button onclick="app.switchTab('expenses')" data-nav="expenses" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
             <i data-lucide="wallet" class="w-5 h-5"></i>
             <span>Financeiro Pessoal</span>
@@ -842,6 +849,114 @@
         </div>
       </div>
 
+      <!-- VIEW 4.5: AGENDA DE ATENDIMENTOS & CAPACIDADE -->
+      <div id="view-schedule" class="view-tab hidden p-4 sm:p-8 space-y-6 max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+              <i data-lucide="calendar" class="w-7 h-7 text-indigo-600"></i>
+              <span>Agenda & Capacidade de Atendimento</span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-0.5">Controle sua capacidade diária de compras no polo comercial e agende os atendimentos com qualidade.</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input type="month" id="schedule-month-filter" onchange="app.loadScheduleSummary(this.value)"
+              class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 shadow-xs">
+          </div>
+        </div>
+
+        <!-- Schedule Settings Card -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i>
+              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Regras de Atendimento</h3>
+            </div>
+            <span class="text-[11px] text-slate-400 font-medium">Controle de Vagas</span>
+          </div>
+
+          <form onsubmit="app.saveScheduleSettings(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Modo de Agendamento</label>
+              <select id="sched-mode" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+                <option value="manual">Manual (Eu aprovo e escolho a data)</option>
+                <option value="automatico">Automático (Sistema aloca nas vagas livres)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Capacidade Máxima por Dia</label>
+              <input type="number" id="sched-daily-limit" min="1" max="50" required
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                placeholder="Ex: 4 atendimentos">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Turno / Horário Padrão</label>
+              <input type="text" id="sched-period-name" required
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                placeholder="Ex: Manhã (06h às 14h)">
+            </div>
+
+            <div>
+              <button type="submit" class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Salvar Regras</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Pending Acceptance Alert Section -->
+        <div id="schedule-pending-section" class="hidden bg-amber-50/80 p-5 rounded-2xl border border-amber-200 shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-amber-900 font-bold text-sm">
+              <i data-lucide="clock" class="w-4 h-4 text-amber-600"></i>
+              <span>Solicitações Aguardando Confirmação de Data</span>
+            </div>
+            <span id="schedule-pending-count-badge" class="px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full font-black text-xs">0 pendentes</span>
+          </div>
+
+          <div id="schedule-pending-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Main Calendar & Daily Schedule Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Calendar Days List / Overview -->
+          <div class="lg:col-span-1 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Dias com Atendimentos</h3>
+              <span id="schedule-days-count" class="text-[11px] text-slate-400 font-medium">0 dias</span>
+            </div>
+
+            <div id="schedule-calendar-days" class="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Day Details & Orders List -->
+          <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h3 id="schedule-selected-day-title" class="text-base font-black text-slate-900">Selecione um dia</h3>
+                <p id="schedule-selected-day-subtitle" class="text-xs text-slate-400">Clique em um dos dias ao lado para ver os clientes e pedidos agendados.</p>
+              </div>
+              <div id="schedule-selected-day-capacity">
+                <!-- Capacity badge -->
+              </div>
+            </div>
+
+            <div id="schedule-day-orders-list" class="space-y-3">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- VIEW 5: PORTAL EXCLUSIVO DO CLIENTE -->
       <div id="view-client-portal" class="view-tab hidden p-4 sm:p-8 space-y-6 max-w-5xl mx-auto">
         <!-- Client Hero Header -->
@@ -1022,10 +1137,15 @@
           <span>Vendas</span>
           <span id="badge-sales-pending-m" class="hidden absolute top-1 right-5 w-2 h-2 bg-amber-500 rounded-full"></span>
         </button>
+        <button onclick="app.switchTab('schedule')" data-nav-m="schedule" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all relative">
+          <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+          <span>Agenda</span>
+          <span id="badge-schedule-pending-m" class="hidden absolute top-1 right-3 w-2 h-2 bg-amber-500 rounded-full"></span>
+        </button>
 
         <!-- Central FAB on mobile for fast input -->
-        <button onclick="app.openQuickActionsModal()" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-300 active:scale-95 transition-all">
-          <i data-lucide="plus" class="w-6 h-6"></i>
+        <button onclick="app.openQuickActionsModal()" class="w-11 h-11 -mt-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-300 active:scale-95 transition-all">
+          <i data-lucide="plus" class="w-5 h-5"></i>
         </button>
 
         <button onclick="app.switchTab('expenses')" data-nav-m="expenses" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
@@ -1552,6 +1672,69 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ACEITAR E AGENDAR PEDIDO (ASSESSOR) -->
+  <div id="modal-accept-schedule" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto flex flex-col">
+      <div class="px-6 py-4 bg-indigo-50 border-b border-indigo-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Agendar Atendimento de Compras</h3>
+            <p class="text-[10px] text-slate-500">Defina o dia e o turno em que você fará as compras deste cliente</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-accept-schedule')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.saveAcceptedSchedule(event)" class="p-6 space-y-4">
+        <input type="hidden" id="accept-order-id">
+
+        <!-- Client & Order Info Card -->
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">Cliente:</span>
+            <span id="accept-client-name" class="font-bold text-slate-900">-</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-medium">Peças Solicitadas:</span>
+            <span id="accept-items-desc" class="font-semibold text-slate-700 truncate max-w-[220px]">-</span>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
+            <span class="text-slate-500 font-medium">Comissão Total:</span>
+            <span id="accept-commission-total" class="font-black text-emerald-600">R$ 0,00</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Data Agendada para as Compras *</label>
+          <input type="date" id="accept-scheduled-date" required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+          <p class="text-[10px] text-slate-400 mt-1">Essa data aparecerá na linha do tempo do cliente assim que você confirmar.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Turno / Período *</label>
+          <input type="text" id="accept-scheduled-period" required value="Manhã (06h às 14h)"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modal-accept-schedule')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Confirmar Agendamento</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

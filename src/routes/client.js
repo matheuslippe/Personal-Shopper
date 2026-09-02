@@ -1,5 +1,6 @@
 const { queryAll, queryGet, queryRun, formatOrderRow } = require('../db/client');
 const { sendJson, sendError, parseJsonBody } = require('../utils/http');
+const { findNextAvailableScheduleDate } = require('./schedule');
 
 function generateTrackingCode() {
   return 'TRK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -136,9 +137,23 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
     const todayStr = now.split('T')[0];
     const trackingCode = generateTrackingCode();
 
+    // Check assessor schedule mode
+    const modeSetting = await queryGet("SELECT value FROM settings WHERE user_id = ? AND key = 'schedule_mode'", [targetAssessorId]);
+    const periodSetting = await queryGet("SELECT value FROM settings WHERE user_id = ? AND key = 'schedule_period_name'", [targetAssessorId]);
+    const scheduleMode = modeSetting ? modeSetting.value : 'manual';
+    const scheduledPeriod = periodSetting ? periodSetting.value : 'Manhã (06h às 14h)';
+
+    let scheduledDate = null;
+    let acceptanceStatus = 'aguardando_aceite';
+
+    if (scheduleMode === 'automatico') {
+      scheduledDate = await findNextAvailableScheduleDate(targetAssessorId);
+      acceptanceStatus = 'agendado';
+    }
+
     const result = await queryRun(`
-      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, scheduled_date, scheduled_period, acceptance_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       targetAssessorId,
       session.user_id,
@@ -154,6 +169,9 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
       (notes || '').trim(),
       itemsJsonStr,
       trackingCode,
+      scheduledDate,
+      scheduledPeriod,
+      acceptanceStatus,
       now,
       now
     ]);
@@ -161,7 +179,9 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
     const newOrder = await queryGet("SELECT * FROM orders WHERE id = ?", [result.lastInsertRowid]);
     return sendJson(res, 201, {
       order: formatOrderRow(newOrder),
-      message: 'Solicitação de assessoria enviada com sucesso ao assessor!'
+      message: acceptanceStatus === 'agendado' 
+        ? `Solicitação enviada e agendada automaticamente para ${scheduledDate}!` 
+        : 'Solicitação de assessoria enviada com sucesso! O assessor irá confirmar a data de compras em breve.'
     });
   }
 

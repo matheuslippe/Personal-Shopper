@@ -355,6 +355,7 @@ const app = {
     const titles = {
       overview: { title: 'Visão Geral', sub: '| Resumo consolidado de faturamento e despesas' },
       sales: { title: 'Vendas & Assessorias', sub: '| Controle de pedidos, clientes e comissões' },
+      schedule: { title: 'Agenda & Capacidade', sub: '| Controle de atendimentos diários e confirmação de compras' },
       expenses: { title: 'Financeiro Pessoal', sub: '| Controle de gastos do dia a dia e saldo líquido' },
       settings: { title: 'Categorias & Ajustes', sub: '| Gerenciamento de categorias, comissões e segurança' },
       'client-portal': { title: 'Portal do Cliente', sub: '| Acompanhamento de pedidos e pagamentos' }
@@ -379,6 +380,8 @@ const app = {
     } else if (this.currentTab === 'sales') {
       await this.loadOrders();
       await this.loadSalesDashboardMetrics();
+    } else if (this.currentTab === 'schedule') {
+      await this.loadScheduleSummary();
     } else if (this.currentTab === 'expenses') {
       await this.loadExpenses();
       await this.loadExpensesDashboardMetrics();
@@ -1839,18 +1842,23 @@ const app = {
           </div>
 
           <!-- Stepper Visualization -->
-          <div class="grid grid-cols-3 gap-2 text-center text-xs">
-            <div class="p-2.5 rounded-xl ${o.status ? 'bg-emerald-50 text-emerald-800 font-bold' : 'bg-slate-50 text-slate-400'}">
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-center text-xs">
+            <div class="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold">
               <span class="block text-base mb-0.5">📝</span>
               <span>1. Solicitado</span>
             </div>
+            <div class="p-2.5 rounded-xl ${o.acceptance_status === 'agendado' || o.scheduled_date ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200' : 'bg-amber-50 text-amber-800 font-bold border border-amber-200'}">
+              <span class="block text-base mb-0.5">${o.acceptance_status === 'agendado' || o.scheduled_date ? '📅' : '⏳'}</span>
+              <span>${o.scheduled_date ? '2. ' + this.formatDateBR(o.scheduled_date) : '2. Aguardando Aceite'}</span>
+              ${o.scheduled_period ? `<span class="block text-[10px] text-slate-500 font-normal truncate">${this.escapeHtml(o.scheduled_period)}</span>` : ''}
+            </div>
             <div class="p-2.5 rounded-xl ${o.status === 'pago' || o.supplier ? 'bg-emerald-50 text-emerald-800 font-bold' : 'bg-slate-50 text-slate-400'}">
               <span class="block text-base mb-0.5">🛍️</span>
-              <span>2. Em Compras</span>
+              <span>3. Em Compras</span>
             </div>
             <div class="p-2.5 rounded-xl ${isPaid ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-50 text-slate-400'}">
               <span class="block text-base mb-0.5">${isPaid ? '✅' : '💳'}</span>
-              <span>3. ${isPaid ? 'Comissão Paga' : 'Pagar Comissão'}</span>
+              <span>4. ${isPaid ? 'Comissão Paga' : 'Pagar Comissão'}</span>
             </div>
           </div>
 
@@ -2100,21 +2108,27 @@ const app = {
 
       // Stepper
       const isPaid = o.status === 'pago';
+      const isAccepted = o.acceptance_status === 'agendado' || o.scheduled_date;
       const stepperEl = document.getElementById('track-stepper');
       stepperEl.innerHTML = `
-        <div class="flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold">
+        <div class="flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-[11px]">
           <span class="block text-sm">📝</span>
-          <span>Solicitado</span>
+          <span>1. Solicitado</span>
         </div>
-        <div class="w-4 h-0.5 bg-slate-300"></div>
-        <div class="flex-1 text-center py-2 px-1 rounded-xl ${o.supplier || isPaid ? 'bg-emerald-100 text-emerald-900 font-bold' : 'bg-slate-100 text-slate-400'}">
+        <div class="w-2 h-0.5 bg-slate-300"></div>
+        <div class="flex-1 text-center py-2 px-1 rounded-xl ${isAccepted ? 'bg-emerald-100 text-emerald-900 font-bold' : 'bg-amber-100 text-amber-900 font-bold'} text-[11px]">
+          <span class="block text-sm">${isAccepted ? '📅' : '⏳'}</span>
+          <span>${o.scheduled_date ? this.formatDateBR(o.scheduled_date) : 'Aguardando Data'}</span>
+        </div>
+        <div class="w-2 h-0.5 bg-slate-300"></div>
+        <div class="flex-1 text-center py-2 px-1 rounded-xl ${o.supplier || isPaid ? 'bg-emerald-100 text-emerald-900 font-bold' : 'bg-slate-100 text-slate-400'} text-[11px]">
           <span class="block text-sm">🛍️</span>
-          <span>Em Compras</span>
+          <span>3. Em Compras</span>
         </div>
-        <div class="w-4 h-0.5 bg-slate-300"></div>
-        <div class="flex-1 text-center py-2 px-1 rounded-xl ${isPaid ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-400'}">
+        <div class="w-2 h-0.5 bg-slate-300"></div>
+        <div class="flex-1 text-center py-2 px-1 rounded-xl ${isPaid ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-400'} text-[11px]">
           <span class="block text-sm">${isPaid ? '✅' : '💳'}</span>
-          <span>${isPaid ? 'Pago' : 'Pendente'}</span>
+          <span>${isPaid ? '4. Pago' : '4. Pendente'}</span>
         </div>
       `;
 
@@ -2203,6 +2217,270 @@ const app = {
   },
 
   // --- FORMATTERS & UTILITIES ---
+  // --- SCHEDULE & CAPACITY MODULE ---
+  scheduleData: null,
+  selectedScheduleDate: null,
+
+  async loadScheduleSummary(monthVal) {
+    const month = monthVal || this.currentMonth;
+    try {
+      const data = await this.apiGet(`/api/schedule/summary?month=${encodeURIComponent(month)}`);
+      this.scheduleData = data;
+      this.renderScheduleView(data);
+    } catch (err) {
+      console.error('Erro ao carregar agenda:', err);
+      this.showToast('Erro ao carregar dados da agenda: ' + err.message, 'error');
+    }
+  },
+
+  renderScheduleView(data) {
+    if (!data) return;
+
+    // 1. Fill settings inputs
+    const modeSelect = document.getElementById('sched-mode');
+    const limitInput = document.getElementById('sched-daily-limit');
+    const periodInput = document.getElementById('sched-period-name');
+    const monthFilter = document.getElementById('schedule-month-filter');
+
+    if (modeSelect) modeSelect.value = data.settings.schedule_mode || 'manual';
+    if (limitInput) limitInput.value = data.settings.schedule_daily_limit || 4;
+    if (periodInput) periodInput.value = data.settings.schedule_period_name || 'Manhã (06h às 14h)';
+    if (monthFilter) monthFilter.value = data.month || this.currentMonth;
+
+    // 2. Pending Acceptance Section & Badges
+    const pending = data.pending_acceptance || [];
+    const pendingSection = document.getElementById('schedule-pending-section');
+    const pendingBadge = document.getElementById('schedule-pending-count-badge');
+    const pendingList = document.getElementById('schedule-pending-list');
+    const navBadge = document.getElementById('badge-schedule-pending');
+    const navBadgeM = document.getElementById('badge-schedule-pending-m');
+
+    if (navBadge) {
+      if (pending.length > 0) {
+        navBadge.classList.remove('hidden');
+        navBadge.textContent = pending.length;
+      } else {
+        navBadge.classList.add('hidden');
+      }
+    }
+    if (navBadgeM) {
+      if (pending.length > 0) navBadgeM.classList.remove('hidden');
+      else navBadgeM.classList.add('hidden');
+    }
+
+    if (pending.length > 0) {
+      pendingSection.classList.remove('hidden');
+      pendingBadge.textContent = `${pending.length} aguardando agendamento`;
+      pendingList.innerHTML = pending.map(o => `
+        <div class="bg-white p-4 rounded-xl border border-amber-300 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-900 text-xs">${this.escapeHtml(o.client_name)}</span>
+            <span class="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+              ${o.tracking_code || 'TRK-' + o.id}
+            </span>
+          </div>
+          <p class="text-xs text-slate-600 font-medium truncate">${this.escapeHtml(o.items_desc)}</p>
+          <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+            <span>${o.quantity} peças (${this.formatCurrency(o.commission_total)})</span>
+            <button onclick="app.openAcceptScheduleModal(${o.id})" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1">
+              <i data-lucide="calendar" class="w-3 h-3"></i>
+              <span>Agendar Data</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      pendingSection.classList.add('hidden');
+    }
+
+    // 3. Calendar Days List
+    const daysContainer = document.getElementById('schedule-calendar-days');
+    const daysCountEl = document.getElementById('schedule-days-count');
+    const scheduledByDate = data.scheduled_by_date || {};
+    const dates = Object.keys(scheduledByDate).sort();
+
+    if (daysCountEl) daysCountEl.textContent = `${dates.length} dia(s) agendado(s)`;
+
+    if (dates.length === 0) {
+      daysContainer.innerHTML = `
+        <div class="p-6 text-center text-slate-400 text-xs">
+          Nenhum atendimento agendado para ${data.month}.
+        </div>
+      `;
+      this.renderScheduleDayOrders(null);
+    } else {
+      daysContainer.innerHTML = dates.map(d => {
+        const item = scheduledByDate[d];
+        const isFull = item.orders.length >= item.limit;
+        const badgeClass = isFull ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800';
+        const isSelected = this.selectedScheduleDate === d;
+
+        return `
+          <div onclick="app.selectScheduleDay('${d}')" class="p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'}">
+            <div>
+              <span class="block text-xs font-black text-slate-900">📅 ${this.formatDateBR(d)}</span>
+              <span class="text-[10px] text-slate-500">${item.orders.length} cliente(s) agendado(s)</span>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">
+              ${item.orders.length}/${item.limit} ${isFull ? 'Lotado' : 'Vagas'}
+            </span>
+          </div>
+        `;
+      }).join('');
+
+      // Auto-select first date if none selected
+      if (!this.selectedScheduleDate || !scheduledByDate[this.selectedScheduleDate]) {
+        this.selectScheduleDay(dates[0]);
+      } else {
+        this.renderScheduleDayOrders(this.selectedScheduleDate);
+      }
+    }
+    lucide.createIcons();
+  },
+
+  selectScheduleDay(dateStr) {
+    this.selectedScheduleDate = dateStr;
+    const data = this.scheduleData;
+    if (!data) return;
+
+    // Update active highlight in list
+    document.querySelectorAll('#schedule-calendar-days > div').forEach(el => {
+      if (el.textContent.includes(this.formatDateBR(dateStr))) {
+        el.className = 'p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200';
+      } else {
+        el.className = 'p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between bg-slate-50 hover:bg-slate-100 border-slate-200';
+      }
+    });
+
+    this.renderScheduleDayOrders(dateStr);
+    lucide.createIcons();
+  },
+
+  renderScheduleDayOrders(dateStr) {
+    const titleEl = document.getElementById('schedule-selected-day-title');
+    const subEl = document.getElementById('schedule-selected-day-subtitle');
+    const capEl = document.getElementById('schedule-selected-day-capacity');
+    const listEl = document.getElementById('schedule-day-orders-list');
+
+    if (!dateStr || !this.scheduleData || !this.scheduleData.scheduled_by_date[dateStr]) {
+      titleEl.textContent = 'Nenhum dia selecionado';
+      subEl.textContent = 'Selecione um dia no calendário ao lado para ver os clientes agendados.';
+      capEl.innerHTML = '';
+      listEl.innerHTML = '<div class="p-8 text-center text-slate-400 text-xs">Nenhum atendimento para exibir.</div>';
+      return;
+    }
+
+    const dayInfo = this.scheduleData.scheduled_by_date[dateStr];
+    titleEl.textContent = `Atendimentos de ${this.formatDateBR(dateStr)}`;
+    subEl.textContent = `${dayInfo.orders.length} assessoria(s) agendada(s) para este dia.`;
+    
+    const isFull = dayInfo.orders.length >= dayInfo.limit;
+    capEl.innerHTML = `
+      <span class="px-3 py-1 rounded-full text-xs font-bold ${isFull ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+        Capacidade: ${dayInfo.orders.length} de ${dayInfo.limit}
+      </span>
+    `;
+
+    listEl.innerHTML = dayInfo.orders.map(o => {
+      const isPaid = o.status === 'pago';
+      return `
+        <div class="p-4 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 transition-all">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                ${o.client_name ? o.client_name.slice(0, 2).toUpperCase() : 'CL'}
+              </span>
+              <div>
+                <h4 class="font-bold text-slate-900 text-xs">${this.escapeHtml(o.client_name)}</h4>
+                <p class="text-[10px] text-slate-400">Turno: <strong>${this.escapeHtml(o.scheduled_period || 'Manhã')}</strong> • Rastreio: ${o.tracking_code || 'TRK-' + o.id}</p>
+              </div>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isPaid ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-800'}">
+              ${isPaid ? '✅ Pago' : '⏳ Pendente'}
+            </span>
+          </div>
+
+          <div class="text-xs bg-white p-2.5 rounded-xl border border-slate-100 space-y-1">
+            <div class="flex items-center justify-between font-semibold text-slate-800">
+              <span>${this.escapeHtml(o.items_desc)}</span>
+              <span class="text-emerald-700 font-bold">${this.formatCurrency(o.commission_total)}</span>
+            </div>
+            ${o.notes ? `<p class="text-[10px] text-slate-400">Obs: ${this.escapeHtml(o.notes)}</p>` : ''}
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button onclick="app.openOrderModal(${o.id})" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition-all">
+              Editar Pedido
+            </button>
+            <button onclick="app.copyTrackingLink('${o.tracking_code}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg transition-all flex items-center gap-1">
+              <i data-lucide="share-2" class="w-3 h-3"></i>
+              <span>Link do Cliente</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  async saveScheduleSettings(e) {
+    e.preventDefault();
+    const schedule_mode = document.getElementById('sched-mode').value;
+    const schedule_daily_limit = parseInt(document.getElementById('sched-daily-limit').value, 10) || 4;
+    const schedule_period_name = document.getElementById('sched-period-name').value.trim() || 'Manhã (06h às 14h)';
+
+    try {
+      await this.apiPost('/api/schedule/settings', {
+        schedule_mode,
+        schedule_daily_limit,
+        schedule_period_name
+      });
+      this.showToast('Regras de agenda atualizadas com sucesso!', 'success');
+      await this.loadScheduleSummary();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  openAcceptScheduleModal(orderId) {
+    const modal = document.getElementById('modal-accept-schedule');
+    const order = (this.orders || []).find(o => o.id === orderId) || (this.scheduleData?.pending_acceptance || []).find(o => o.id === orderId);
+    if (!order) return;
+
+    document.getElementById('accept-order-id').value = order.id;
+    document.getElementById('accept-client-name').textContent = order.client_name;
+    document.getElementById('accept-items-desc').textContent = `${order.quantity}x ${order.items_desc}`;
+    document.getElementById('accept-commission-total').textContent = this.formatCurrency(order.commission_total);
+
+    // Default to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('accept-scheduled-date').value = tomorrow.toISOString().split('T')[0];
+    document.getElementById('accept-scheduled-period').value = this.scheduleData?.settings?.schedule_period_name || 'Manhã (06h às 14h)';
+
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  async saveAcceptedSchedule(e) {
+    e.preventDefault();
+    const orderId = parseInt(document.getElementById('accept-order-id').value, 10);
+    const scheduled_date = document.getElementById('accept-scheduled-date').value;
+    const scheduled_period = document.getElementById('accept-scheduled-period').value;
+
+    try {
+      await this.apiPatch(`/api/orders/${orderId}/accept-schedule`, {
+        scheduled_date,
+        scheduled_period
+      });
+      this.showToast('Atendimento agendado e confirmado com sucesso!', 'success');
+      this.closeModal('modal-accept-schedule');
+      await this.loadScheduleSummary();
+      await this.loadOrders();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
   formatCurrency(value) {
     const num = parseFloat(value) || 0;
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
