@@ -184,6 +184,9 @@ const app = {
         errBox.textContent = 'As senhas digitadas não coincidem.';
         errBox.classList.remove('hidden');
       }
+      return;
+    }
+
     const roleRadio = document.querySelector('input[name="register-role"]:checked');
     const role = roleRadio ? roleRadio.value : 'assessor';
 
