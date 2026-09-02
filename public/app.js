@@ -1796,10 +1796,6 @@ const app = {
       const data = await this.apiGet('/api/client/assessor-info');
       if (data && data.assessor) {
         this.clientAssessor = data.assessor;
-        const nameEl = document.getElementById('client-dash-assessor-name');
-        const pixEl = document.getElementById('client-dash-pix-key');
-        if (nameEl) nameEl.textContent = data.assessor.username || 'Assessor Responsável';
-        if (pixEl) pixEl.textContent = data.assessor.pix_key ? `${data.assessor.pix_key.slice(0, 15)}...` : 'Não configurada';
       }
     } catch (e) {}
   },
