@@ -1,4 +1,4 @@
-﻿const { queryRun } = require('../db/client');
+const { queryRun } = require('../db/client');
 const logger = require('../utils/logger');
 
 // In-memory sliding window rate limiter: key -> [timestamps]
@@ -49,7 +49,7 @@ function applySecurityHeaders(req, res) {
   // Content Security Policy
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: https:; font-src 'self' https: data:; connect-src 'self' https:;"
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com; img-src 'self' data: https: blob:; font-src 'self' https: data:; connect-src 'self' https:;"
   );
 }
 
