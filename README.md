@@ -1,6 +1,6 @@
 # 🛍️ Assessoria Express — Sistema de Gestão de Personal Shopper & Portal do Cliente
 
-Sistema web completo, seguro e responsivo desenvolvido especialmente para **Personal Shoppers e Assessorias de Compras** (intermediação de roupas, calçados e vestuário em polos como Brás, Bom Retiro e 25 de Março), com **separação de perfis entre Assessor e Cliente**, **Portal do Cliente com Dashboard próprio**, **múltiplos itens por pedido**, **rastreamento público** e **controle financeiro integrado**.
+Sistema web completo, seguro e responsivo desenvolvido especialmente para **Personal Shoppers e Assessorias de Compras** (intermediação de roupas, calçados e vestuário em polos comerciais como Brás, Bom Retiro e 25 de Março), com **separação de perfis entre Assessor e Cliente**, **Portal do Cliente com Dashboard próprio**, **Módulo de Agenda & Capacidade de Atendimento**, **Controle de Entrega & Despacho por Modalidade (Correios, Excursão, Transportadora e Uber)**, **múltiplos itens por pedido**, **rastreamento público** e **controle financeiro integrado**.
 
 ---
 
@@ -17,25 +17,60 @@ Sistema web completo, seguro e responsivo desenvolvido especialmente para **Pers
   - Auto-preenchimento do nome do cliente solicitante.
   - Seletor dinâmico do **Assessor Responsável** desejado com taxa por peça informada.
   - Adição de **múltiplas peças em um único pedido** com quantidades e descrições individuais.
+  - Seletor dinâmico de **Modelo de Entrega & Despacho** com subformulários específicos.
+- **Linha do Tempo em 4 Etapas**:
+  1. 📝 **1. Solicitado:** Pedido registrado no sistema.
+  2. 📅 **2. Data de Atendimento:** Data confirmada de compras (ou `⏳ Aguardando Aceite` se modo manual).
+  3. 🛍️ **3. Em Compras:** Assessor no polo comercial realizando as compras.
+  4. 💳 **4. Comissão Paga & Envio:** Quitação da assessoria e liberação para envio.
+- **Perfil de Entrega Padrão (`📍 Meu Endereço Padrão`)**:
+  - O cliente pode salvar sua modalidade e endereço preferidos para preenchimento automático em novas solicitações.
 - **Histórico & Rastreamento**:
-  - Linha do tempo visual de 3 etapas (*1. Solicitado ➔ 2. Em Compras ➔ 3. Comissão Paga*).
   - Filtros rápidos (*Todos, Pendentes e Pagos*).
-  - Link de **Rastreio Público** por código único (`TRK-XXXXXX`) que pode ser compartilhado até com quem não tem conta.
+  - Consulta aos dados de despacho enviados em cada pedido.
+  - Link de **Rastreio Público** por código único (`TRK-XXXXXX`) que pode ser compartilhado com qualquer pessoa sem login.
 - **Pagamento via Pix Integrado**:
-  - Botão de pagamento em 1 clique que busca a **Chave Pix específica do assessor responsável** por aquele pedido, com valor exato da comissão e botão de cópia rápida.
+  - Validação inteligente de pedidos pendentes com exibição dinâmica da **Chave Pix do Assessor Responsável**.
 
 ---
 
-### 💼 2. Painel de Gestão do Assessor (Personal Shopper)
+### 📅 2. Módulo de Agenda & Capacidade de Atendimento (Assessor)
+- **Regras de Atendimento Configuráveis**:
+  - **Modo Manual:** O assessor analisa novas solicitações e define/confirma a data em que fará as compras.
+  - **Modo Automático:** O sistema distribui automaticamente os novos pedidos nos próximos dias livres com vagas.
+  - **Capacidade Diária Máxima:** Limite de atendimentos por dia (ex: 4 clientes/dia) para evitar sobrecarga no polo comercial.
+  - **Turno Padrão:** Ex: `Manhã (06h às 14h)`.
+- **Painel de Solicitações Pendentes**:
+  - Card de alerta em amarelo com contagem de pendências e botão **`📅 Agendar Data`** com 1 clique.
+- **Calendário com Indicadores de Vagas**:
+  - Visualização de todos os dias com atendimentos agendados e badges de ocupação (`🟢 2/4 Vagas` ou `🔴 Lotado`).
+  - Lista completa dos clientes, peças e horários agendados para o dia selecionado.
+
+---
+
+### 🚚 3. Módulo de Entrega & Despacho por Modalidade
+O sistema coleta e valida os dados de despacho específicos conforme a logística utilizada:
+
+1. 📦 **Correios (PAC / Sedex):**
+   - Nome Completo, CPF, Endereço Completo com CEP, Telefone/WhatsApp.
+2. 🚌 **Excursão (Ônibus de Compras):**
+   - Nome Completo, Telefone/WhatsApp, Cidade de Destino, Nome da Excursão, Localização do Ônibus (ex: Pátio Pari / Vautier), Horário Limite de Recebimento, Placa do Ônibus e Necessidade de Nota Fiscal (*Sim / Não*).
+3. 🚚 **Transportadora:**
+   - Nome da Transportadora, Ponto no Polo Comercial, Necessidade de NF (*Sim / Não*), Nome do Destinatário, CPF, Endereço de Destino com CEP e Telefone/WhatsApp.
+4. 🚗 **Uber / Entrega Local (Flash):**
+   - Endereço Completo de Entrega, Nome do Destinatário e Telefone de Contato.
+- **📋 Copiar para WhatsApp**:
+  - O Assessor conta com um botão de 1 clique que gera uma mensagem formatada e limpa para enviar diretamente ao guia da excursão, motorista ou cliente.
+
+---
+
+### 💼 4. Gestão Financeira & Vendas do Assessor
 - **Vendas & Assessorias**:
-  - Cadastro e edição de pedidos com múltiplos itens e tipos de produtos.
-  - Cálculo automático de comissão por peça e consolidado total.
-  - Notificação de novas solicitações enviadas por clientes em tempo real (badge no menu).
-  - 3 Status inteligentes: 🟡 **Pendente**, 🔴 **Atrasado** e 🟢 **Pago**.
-  - Ações rápidas para marcar pagamentos recebidos em 1 clique.
-  - Filtros avançados por status, cliente, fornecedor e período.
+  - Cadastro e edição de pedidos com múltiplos itens e cálculo de comissões por peça.
+  - Status inteligentes: 🟡 **Pendente**, 🔴 **Atrasado** e 🟢 **Pago**.
+  - Ações rápidas para marcar pagamentos recebidos e visualizar dados de despacho (`🚚`).
 - **Módulo Financeiro Pessoal**:
-  - Lançamento de despesas do dia a dia (alimentação, transporte, banheiro em shoppings, etc.).
+  - Lançamento de despesas do dia a dia (alimentação, transporte, etc.).
   - Categorias customizáveis com paleta de cores.
   - **Saldo Líquido Real**: Dedução automática das despesas diárias sobre o faturamento de comissões.
 - **Dashboard Consolidado (Visão Geral)**:
@@ -44,8 +79,7 @@ Sistema web completo, seguro e responsivo desenvolvido especialmente para **Pers
   - Ranking dos clientes que mais compram.
 - **Configurações & Ajustes**:
   - Definição da **Taxa Padrão de Comissão por Peça** (ex: `R$ 10,00`).
-  - Cadastro da **Chave Pix do Assessor** (CPF, CNPJ, E-mail, Celular ou Chave Aleatória) exibida para seus clientes.
-  - Gerenciamento de categorias de despesas.
+  - Cadastro da **Chave Pix do Assessor** exibida para seus clientes.
   - Troca segura de senha.
 
 ---
@@ -56,7 +90,7 @@ Sistema web completo, seguro e responsivo desenvolvido especialmente para **Pers
 - **Isolamento Multi-Tenant**: Cada assessor visualiza exclusivamente seus próprios clientes, pedidos e finanças.
 - **Criptografia Forte**: Senhas com hash `PBKDF2` (100.000 iterações com Salt criptográfico seguro).
 - **Sessões Protegidas**: Tokens de sessão opacos de 64 caracteres hexadecimais com expiração automática.
-- **Proteção contra Força Bruta**: Rate limiter em rotas críticas de login e cadastro.
+- **Proteção contra Força Bruta & Path Traversal**: Rate limiter em rotas críticas e blindagem estática no servidor HTTP.
 - **Segurança HTTP**: Headers `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options` e sanitização anti-XSS.
 - **Banco de Dados Híbrido**: Suporte transparente a **Turso Cloud** (LibSQL em produção no Render) e **SQLite local** (`dados/banco.db`) em desenvolvimento.
 
@@ -71,19 +105,21 @@ personal-shopper-system/
 │   └── app.js                  # Lógica de interface, gráficos Chart.js e chamadas de API
 ├── src/
 │   ├── db/
-│   │   └── database.js         # Driver de banco LibSQL com migrations automáticas
+│   │   ├── client.js           # Utilitários de consulta e formatação de pedidos
+│   │   └── migrations.js       # Schema e migrations automáticas LibSQL
 │   ├── middleware/
-│   │   ├── auth.js             # Autenticação e validação de sessão
+│   │   ├── auth.js             # Autenticação e validação de sessão com RBAC
 │   │   └── security.js         # Rate limiting e cabeçalhos HTTP de segurança
 │   └── routes/
-│       ├── auth.js             # Registro, login, logout e troca de senha
-│       ├── client.js           # Portal do cliente, solicitações e rastreio público
+│       ├── auth.js             # Registro, login case-insensitive e troca de senha
+│       ├── client.js           # Portal do cliente, solicitações, perfil de entrega e rastreio
 │       ├── dashboard.js        # Métricas consolidadas e relatórios mensais
 │       ├── expenses.js         # Lançamento e controle de despesas
-│       ├── orders.js           # CRUD de pedidos com múltiplos itens
+│       ├── orders.js           # CRUD de pedidos com múltiplos itens e dados de despacho
+│       ├── schedule.js         # Módulo de agenda, capacidade e aceite de datas
 │       └── settings.js         # Configurações de taxa, categorias e dados Pix
 ├── test/
-│   └── app.test.js             # Suíte de testes automatizados (node:test)
+│   └── app.test.js             # Suíte de 16 testes automatizados (node:test)
 ├── server.js                   # Servidor HTTP nativo Node.js
 ├── push_to_github.bat          # Script auxiliar para commit e deploy no Render
 └── package.json                # Dependências e scripts de execução
@@ -123,7 +159,7 @@ personal-shopper-system/
 
 ## 🧪 Execução dos Testes Automatizados
 
-Para rodar a suíte completa de testes de API, isolamento multi-tenant, segurança e portal do cliente:
+Para rodar a suíte com **16 testes automatizados** cobrindo autenticação, multi-tenant, agenda, modalidades de entrega e segurança:
 
 ```bash
 npm test
@@ -138,7 +174,7 @@ npm test
    - `TURSO_DATABASE_URL`: `libsql://seu-banco.turso.io`
    - `TURSO_AUTH_TOKEN`: `seu_token_aqui`
    - `PORT`: `3000` (ou atribuído automaticamente pelo Render)
-3. Para atualizar a aplicação, basta fazer `git push` na branch principal ou rodar o **`push_to_github.bat`**.
+3. Para atualizar a aplicação, basta rodar o script **`push_to_github.bat`**.
 
 ---
 
