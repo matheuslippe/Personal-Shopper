@@ -35,7 +35,7 @@ const server = http.createServer(async (req, res) => {
     const publicAuthHandled = await handleAuthRoutes(pathname, req, res, null);
     if (publicAuthHandled !== false) return;
 
-    const publicClientHandled = await handleClientRoutes(pathname, req, res, null);
+    const publicClientHandled = await handleClientRoutes(pathname, req, res, null, searchParams);
     if (publicClientHandled !== false) return;
 
     // 2. Protected API Endpoints
@@ -50,7 +50,7 @@ const server = http.createServer(async (req, res) => {
       if (authHandled !== false) return;
 
       // Protected Client Portal Routes
-      const clientHandled = await handleClientRoutes(pathname, req, res, session);
+      const clientHandled = await handleClientRoutes(pathname, req, res, session, searchParams);
       if (clientHandled !== false) return;
 
       // Settings Routes

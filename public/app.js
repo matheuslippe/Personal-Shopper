@@ -1700,6 +1700,7 @@ const app = {
                 <span class="text-xs text-slate-400">• Pedido feito em ${this.formatDateBR(o.order_date)}</span>
               </div>
               <h4 class="font-bold text-slate-900 text-sm mt-1">${this.escapeHtml(o.items_desc)}</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5">👤 Assessor Responsável: <strong class="text-slate-800">${this.escapeHtml(o.assessor_name || 'Assessor')}</strong></p>
             </div>
             <span class="px-3 py-1 rounded-full text-xs font-bold ${statusColor}">
               ${statusLabel}
@@ -1736,9 +1737,9 @@ const app = {
                 <span>Ver Rastreio</span>
               </button>
               ${!isPaid ? `
-                <button onclick="app.openClientPixModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5">
+                <button onclick="app.openClientPixModal(${o.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5">
                   <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                  <span>Pagar Pix</span>
+                  <span>Pagar Pix (${this.formatCurrency(o.commission_total)})</span>
                 </button>
               ` : ''}
             </div>
@@ -1850,13 +1851,47 @@ const app = {
     }
   },
 
-  openClientPixModal() {
+  async openClientPixModal(orderId) {
     const modal = document.getElementById('modal-client-pix');
-    const ass = this.clientAssessor || { username: 'Assessor', pix_key: '', pix_name: '', pix_type: 'Chave Pix' };
+    const orderBanner = document.getElementById('client-pix-order-banner');
+    const orderAmount = document.getElementById('client-pix-order-amount');
+    const orderDesc = document.getElementById('client-pix-order-desc');
 
-    document.getElementById('client-pix-beneficiary').textContent = ass.pix_name || ass.username || 'Assessor Responsável';
-    document.getElementById('client-pix-type').textContent = ass.pix_type || 'Chave Pix';
-    document.getElementById('client-pix-key-val').textContent = ass.pix_key || 'Chave Pix ainda não cadastrada pelo assessor';
+    let assessor = this.clientAssessor || { username: 'Assessor Principal', pix_key: '', pix_name: '', pix_type: 'Chave Pix' };
+
+    if (orderId) {
+      const order = (this.clientOrders || []).find(o => o.id === orderId);
+      if (order) {
+        if (orderBanner) {
+          orderBanner.classList.remove('hidden');
+          orderAmount.textContent = this.formatCurrency(order.commission_total);
+          orderDesc.textContent = `Pedido: ${order.items_desc} (${order.tracking_code || 'TRK-' + order.id})`;
+        }
+        if (order.pix_key || order.assessor_name) {
+          assessor = {
+            username: order.assessor_name || 'Assessor',
+            pix_name: order.pix_name || order.assessor_name || 'Assessor',
+            pix_key: order.pix_key || '',
+            pix_type: order.pix_type || 'Chave Pix'
+          };
+        } else if (order.assessor_id) {
+          try {
+            const data = await this.apiGet(`/api/client/assessor-info?assessor_id=${order.assessor_id}`);
+            if (data && data.assessor) assessor = data.assessor;
+          } catch (e) {}
+        }
+      }
+    } else {
+      if (orderBanner) orderBanner.classList.add('hidden');
+      if (!this.clientAssessor) {
+        await this.loadClientAssessorInfo();
+        if (this.clientAssessor) assessor = this.clientAssessor;
+      }
+    }
+
+    document.getElementById('client-pix-beneficiary').textContent = assessor.pix_name || assessor.username || 'Assessor Responsável';
+    document.getElementById('client-pix-type').textContent = assessor.pix_type || 'Chave Pix';
+    document.getElementById('client-pix-key-val').textContent = assessor.pix_key || 'Chave Pix ainda não cadastrada pelo assessor';
 
     modal.classList.remove('hidden');
     lucide.createIcons();

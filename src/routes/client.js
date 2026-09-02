@@ -5,7 +5,7 @@ function generateTrackingCode() {
   return 'TRK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-async function handleClientRoutes(pathname, req, res, session) {
+async function handleClientRoutes(pathname, req, res, session, searchParams) {
   // 1. PUBLIC: Order Tracking by Code (GET /api/tracking/:code)
   const trackMatch = pathname.match(/^\/api\/tracking\/([A-Za-z0-9\-]+)$/);
   if (trackMatch && req.method === 'GET') {
@@ -39,6 +39,7 @@ async function handleClientRoutes(pathname, req, res, session) {
         notes: formattedOrder.notes
       },
       assessor: {
+        id: assessorId,
         name: assessorUser ? assessorUser.username : 'Assessor',
         pix_key: pixSettings.pix_key || '',
         pix_name: pixSettings.pix_name || '',
@@ -56,11 +57,30 @@ async function handleClientRoutes(pathname, req, res, session) {
       SELECT o.*, u.username as assessor_name 
       FROM orders o 
       LEFT JOIN users u ON o.user_id = u.id 
-      WHERE o.client_user_id = ? OR LOWER(o.client_name) = LOWER(?)
+      WHERE o.client_user_id = ? OR LOWER(TRIM(o.client_name)) = LOWER(TRIM(?))
       ORDER BY o.order_date DESC, o.id DESC
     `, [session.user_id, session.username]);
 
-    return sendJson(res, 200, rawOrders.map(formatOrderRow));
+    const assessorIds = [...new Set(rawOrders.map(o => o.user_id).filter(Boolean))];
+    const pixMap = {};
+    for (const aId of assessorIds) {
+      const pixRows = await queryAll("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('pix_key', 'pix_name', 'pix_type')", [aId]);
+      pixMap[aId] = {};
+      pixRows.forEach(r => { pixMap[aId][r.key] = r.value; });
+    }
+
+    const formattedOrders = rawOrders.map(o => {
+      const formatted = formatOrderRow(o);
+      const assPix = pixMap[o.user_id] || {};
+      formatted.assessor_id = o.user_id;
+      formatted.assessor_name = o.assessor_name || 'Assessor';
+      formatted.pix_key = assPix.pix_key || '';
+      formatted.pix_name = assPix.pix_name || '';
+      formatted.pix_type = assPix.pix_type || 'Chave Pix';
+      return formatted;
+    });
+
+    return sendJson(res, 200, formattedOrders);
   }
 
   // 3. Client Submit Purchase Request: POST /api/client/request
@@ -147,16 +167,21 @@ async function handleClientRoutes(pathname, req, res, session) {
 
   // 4. Assessor Info & Pix for Client: GET /api/client/assessor-info
   if (pathname === '/api/client/assessor-info' && req.method === 'GET') {
-    const user = await queryGet("SELECT assessor_id FROM users WHERE id = ?", [session.user_id]);
-    const assessorId = user && user.assessor_id ? user.assessor_id : 1;
-    const assessorUser = await queryGet("SELECT username FROM users WHERE id = ?", [assessorId]);
-    const pixRows = await queryAll("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('pix_key', 'pix_name', 'pix_type')", [assessorId]);
+    let targetAssessorId = searchParams ? (parseInt(searchParams.get('assessor_id'), 10) || parseInt(searchParams.get('user_id'), 10)) : null;
+    
+    if (!targetAssessorId) {
+      const user = await queryGet("SELECT assessor_id FROM users WHERE id = ?", [session.user_id]);
+      targetAssessorId = user && user.assessor_id ? user.assessor_id : 1;
+    }
+
+    const assessorUser = await queryGet("SELECT id, username FROM users WHERE id = ?", [targetAssessorId]);
+    const pixRows = await queryAll("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('pix_key', 'pix_name', 'pix_type')", [targetAssessorId]);
     const pixSettings = {};
     pixRows.forEach(r => { pixSettings[r.key] = r.value; });
 
     return sendJson(res, 200, {
       assessor: {
-        id: assessorId,
+        id: targetAssessorId,
         username: assessorUser ? assessorUser.username : 'Assessor Principal',
         pix_key: pixSettings.pix_key || '',
         pix_name: pixSettings.pix_name || '',

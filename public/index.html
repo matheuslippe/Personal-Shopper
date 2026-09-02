@@ -1322,12 +1322,21 @@
       </div>
       <div>
         <h3 class="text-base font-black text-slate-900">Pagamento de Comissão via Pix</h3>
-        <p class="text-xs text-slate-400 mt-0.5">Transfira o valor da comissão diretamente para o assessor</p>
+        <p class="text-xs text-slate-400 mt-0.5">Transfira a taxa de assessoria diretamente para o assessor responsável</p>
       </div>
 
-      <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-left">
+      <!-- Order details banner when paying specific order -->
+      <div id="client-pix-order-banner" class="hidden p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-left">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-bold uppercase text-emerald-800 tracking-wider">Valor a Transferir:</span>
+          <span id="client-pix-order-amount" class="text-sm font-black text-emerald-700">R$ 0,00</span>
+        </div>
+        <p id="client-pix-order-desc" class="text-[10px] text-emerald-600 mt-0.5 truncate"></p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5 text-left">
         <div>
-          <span class="text-[10px] font-bold uppercase text-slate-400">Beneficiário</span>
+          <span class="text-[10px] font-bold uppercase text-slate-400">Assessor Responsável / Beneficiário</span>
           <p id="client-pix-beneficiary" class="text-xs font-bold text-slate-800">-</p>
         </div>
         <div>
@@ -1337,8 +1346,8 @@
         <div>
           <span class="text-[10px] font-bold uppercase text-slate-400">Chave Pix</span>
           <div class="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200 mt-1">
-            <span id="client-pix-key-val" class="font-mono text-xs font-bold text-emerald-700 select-all">-</span>
-            <button onclick="app.copyClientPixKey()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1">
+            <span id="client-pix-key-val" class="font-mono text-xs font-bold text-emerald-700 select-all break-all">-</span>
+            <button onclick="app.copyClientPixKey()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shrink-0">
               <i data-lucide="copy" class="w-3.5 h-3.5"></i>
               <span>Copiar</span>
             </button>
