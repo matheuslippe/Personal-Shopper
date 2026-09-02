@@ -9,6 +9,7 @@ const { handleCategoryRoutes } = require('./src/routes/categories');
 const { handleDashboardRoutes } = require('./src/routes/dashboard');
 const { handleSettingsRoutes } = require('./src/routes/settings');
 const { handleExportRoutes } = require('./src/routes/export');
+const { handleClientRoutes } = require('./src/routes/client');
 const { serveStaticFile } = require('./src/utils/staticServer');
 const { sendError } = require('./src/utils/http');
 const logger = require('./src/utils/logger');
@@ -30,9 +31,12 @@ const server = http.createServer(async (req, res) => {
   const searchParams = urlObj.searchParams;
 
   try {
-    // 1. Public Authentication Routes (Register, Login)
+    // 1. Public Routes: Auth (Register, Login) & Public Tracking (GET /api/tracking/:code)
     const publicAuthHandled = await handleAuthRoutes(pathname, req, res, null);
     if (publicAuthHandled !== false) return;
+
+    const publicClientHandled = await handleClientRoutes(pathname, req, res, null);
+    if (publicClientHandled !== false) return;
 
     // 2. Protected API Endpoints
     if (pathname.startsWith('/api/')) {
@@ -44,6 +48,10 @@ const server = http.createServer(async (req, res) => {
       // Protected Auth Routes (Me, Logout, Change Password)
       const authHandled = await handleAuthRoutes(pathname, req, res, session);
       if (authHandled !== false) return;
+
+      // Protected Client Portal Routes
+      const clientHandled = await handleClientRoutes(pathname, req, res, session);
+      if (clientHandled !== false) return;
 
       // Settings Routes
       const settingsHandled = await handleSettingsRoutes(pathname, req, res, session);

@@ -103,13 +103,40 @@
           <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </button>
 
-        <p class="text-center text-xs text-slate-400 pt-2">
-          Não possui uma conta? <button type="button" onclick="app.setAuthMode('register')" class="text-indigo-600 hover:text-indigo-800 font-bold underline">Cadastre-se gratuitamente</button>
-        </p>
+        <div class="pt-2 border-t border-slate-100 flex flex-col gap-2 text-center text-xs">
+          <p class="text-slate-400">
+            Não possui uma conta? <button type="button" onclick="app.setAuthMode('register')" class="text-indigo-600 hover:text-indigo-800 font-bold underline">Cadastre-se</button>
+          </p>
+          <button type="button" onclick="app.promptPublicTracking()" class="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center justify-center gap-1.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all">
+            <i data-lucide="search" class="w-3.5 h-3.5"></i>
+            <span>Rastrear Pedido com Código (Sem Senha)</span>
+          </button>
+        </div>
       </form>
 
       <!-- 2. REGISTER FORM -->
       <form id="register-form" class="space-y-4 hidden" onsubmit="app.handleRegister(event)">
+        <!-- Role selector -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Tipo de Conta *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 bg-slate-50 border border-indigo-200 rounded-xl cursor-pointer hover:bg-indigo-50/50 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-600 has-[:checked]:text-indigo-900 transition-all">
+              <input type="radio" name="register-role" value="assessor" checked class="text-indigo-600 focus:ring-indigo-500">
+              <div class="text-left">
+                <span class="block text-xs font-bold">Assessor</span>
+                <span class="block text-[10px] text-slate-500">Personal Shopper</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-emerald-50/50 has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-600 has-[:checked]:text-emerald-900 transition-all">
+              <input type="radio" name="register-role" value="cliente" class="text-emerald-600 focus:ring-emerald-500">
+              <div class="text-left">
+                <span class="block text-xs font-bold">Cliente</span>
+                <span class="block text-[10px] text-slate-500">Comprador</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div>
           <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Nome de Usuário *</label>
           <div class="relative">
@@ -118,7 +145,7 @@
             </div>
             <input type="text" id="register-username" required minlength="3" autocomplete="username"
               class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              placeholder="Ex: matheus, assessoria_sp">
+              placeholder="Ex: matheus, cliente_joao">
           </div>
           <p class="text-[10px] text-slate-400 mt-1">Mínimo de 3 caracteres</p>
         </div>
@@ -728,8 +755,42 @@
               </form>
             </div>
 
-            <!-- Troca de Senha -->
+            <!-- Configurações de Pagamento Pix -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                <i data-lucide="qr-code" class="w-5 h-5 text-emerald-600"></i>
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Dados Pix para Clientes</h3>
+              </div>
+              <p class="text-xs text-slate-500 leading-relaxed">
+                Configure sua Chave Pix. Ela será exibida automaticamente aos seus clientes para o pagamento das comissões.
+              </p>
+              <form onsubmit="app.savePixSettings(event)" class="space-y-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Chave</label>
+                  <select id="setting-pix-type" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500">
+                    <option value="Chave Aleatória">Chave Aleatória</option>
+                    <option value="CPF/CNPJ">CPF / CNPJ</option>
+                    <option value="E-mail">E-mail</option>
+                    <option value="Telefone/Celular">Telefone / Celular</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Chave Pix *</label>
+                  <input type="text" id="setting-pix-key" required
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Ex: 123.456.789-00 ou seu@email.com">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Nome do Titular / Beneficiário *</label>
+                  <input type="text" id="setting-pix-name" required
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Ex: Matheus Lippe Assessorias">
+                </div>
+                <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl transition-all shadow-sm">
+                  Salvar Dados Pix
+                </button>
+              </form>
+            </div>
               <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
                 <i data-lucide="shield-check" class="w-5 h-5 text-indigo-600"></i>
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Segurança / Senha</h3>
@@ -753,6 +814,57 @@
             </div>
           </div>
 
+      <!-- VIEW 5: PORTAL EXCLUSIVO DO CLIENTE -->
+      <div id="view-client-portal" class="view-tab hidden p-4 sm:p-8 space-y-6 max-w-5xl mx-auto">
+        <!-- Client Hero Header -->
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+          <div class="relative z-10 space-y-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold backdrop-blur-xs">
+              <i data-lucide="user" class="w-3.5 h-3.5"></i>
+              <span>Portal do Cliente</span>
+            </span>
+            <h2 class="text-2xl sm:text-3xl font-black">Acompanhe suas Compras</h2>
+            <p class="text-emerald-100 text-xs sm:text-sm max-w-xl">
+              Consulte o status das suas peças em tempo real, envie novos pedidos e pague suas comissões facilmente via Pix.
+            </p>
+            <div class="pt-3 flex flex-wrap gap-3">
+              <button onclick="app.openClientRequestModal()" class="flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-md transition-all active:scale-95">
+                <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
+                <span>Solicitar Nova Compra / Peças</span>
+              </button>
+              <button onclick="app.openClientPixModal()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-bold text-xs rounded-xl border border-emerald-400/30 transition-all">
+                <i data-lucide="qr-code" class="w-4 h-4 text-emerald-300"></i>
+                <span>Pagar Comissão via Pix</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Timeline List -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="package-check" class="w-5 h-5 text-emerald-600"></i>
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Meus Pedidos de Assessoria</h3>
+            </div>
+            <span id="client-orders-count-badge" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">0 pedidos</span>
+          </div>
+
+          <div id="client-orders-container" class="space-y-3">
+            <!-- Client orders rendered dynamically -->
+          </div>
+
+          <div id="client-orders-empty-state" class="hidden p-12 text-center bg-white rounded-3xl border border-slate-200">
+            <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-3">
+              <i data-lucide="shopping-bag" class="w-7 h-7"></i>
+            </div>
+            <p class="text-base font-bold text-slate-800">Você ainda não tem pedidos cadastrados</p>
+            <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Envie sua primeira lista de roupas ou tênis clicando no botão abaixo!</p>
+            <button onclick="app.openClientRequestModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-200 transition-all">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Fazer Solicitação de Compra</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1077,6 +1189,176 @@
           <p class="text-[10px] text-rose-600 font-normal">Alimentação, banheiro, transporte...</p>
         </div>
       </button>
+    </div>
+  </div>
+
+  <!-- MODAL: NOVA SOLICITAÇÃO DE CLIENTE -->
+  <div id="modal-client-request" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <div class="px-6 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Nova Solicitação de Assessoria</h3>
+            <p class="text-[10px] text-slate-500">Adicione as peças que você deseja que o assessor compre para você</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-client-request')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="client-request-form" onsubmit="app.saveClientRequest(event)" class="p-6 space-y-4 overflow-y-auto flex-1">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Fornecedor / Loja de Preferência (Opcional)</label>
+          <input type="text" id="client-req-supplier"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+            placeholder="Ex: Shopping Vautier, Loja X, Mega Polo...">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-xs font-semibold text-slate-700">Peças Desejadas *</label>
+            <button type="button" onclick="app.addClientRequestItemRow()" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>+ Adicionar Outra Peça</span>
+            </button>
+          </div>
+          <div id="client-req-items-container" class="space-y-2">
+            <!-- Dynamic rows rendered here -->
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Observações / Links / Tamanhos / Cores</label>
+          <textarea id="client-req-notes" rows="3"
+            class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+            placeholder="Ex: Tênis tamanho 41, Camisa preta tamanho M..."></textarea>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modal-client-request')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all">
+            Enviar Pedido ao Assessor
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DADOS PIX DO ASSESSOR PARA O CLIENTE -->
+  <div id="modal-client-pix" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto p-6 space-y-4 text-center">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+        <i data-lucide="qr-code" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-black text-slate-900">Pagamento de Comissão via Pix</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Transfira o valor da comissão diretamente para o assessor</p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-left">
+        <div>
+          <span class="text-[10px] font-bold uppercase text-slate-400">Beneficiário</span>
+          <p id="client-pix-beneficiary" class="text-xs font-bold text-slate-800">-</p>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold uppercase text-slate-400">Tipo de Chave</span>
+          <p id="client-pix-type" class="text-xs font-semibold text-slate-600">-</p>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold uppercase text-slate-400">Chave Pix</span>
+          <div class="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200 mt-1">
+            <span id="client-pix-key-val" class="font-mono text-xs font-bold text-emerald-700 select-all">-</span>
+            <button onclick="app.copyClientPixKey()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Copiar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="app.closeModal('modal-client-pix')" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all">
+        Fechar
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: RASTREAMENTO PÚBLICO DE PEDIDO POR CÓDIGO -->
+  <div id="modal-public-tracking" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+      <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+            <i data-lucide="truck" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Rastreamento de Assessoria</h3>
+            <p id="track-code-display" class="font-mono text-[11px] font-bold text-indigo-600">TRK-XXXXXX</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-public-tracking')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5 overflow-y-auto flex-1">
+        <!-- Visual Stepper Progress -->
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3">Linha do Tempo</span>
+          <div class="flex items-center justify-between text-xs" id="track-stepper">
+            <!-- Stepper steps rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Order Summary Card -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-semibold">Cliente:</span>
+            <span id="track-client-name" class="font-bold text-slate-800">-</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-semibold">Data do Pedido:</span>
+            <span id="track-order-date" class="font-medium text-slate-700">-</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 font-semibold">Total de Peças:</span>
+            <span id="track-total-qty" class="font-bold text-slate-800">0</span>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+            <span class="text-slate-700 font-bold">Comissão da Assessoria:</span>
+            <span id="track-total-comm" class="font-black text-emerald-600 text-sm">R$ 0,00</span>
+          </div>
+        </div>
+
+        <!-- Pieces List -->
+        <div>
+          <span class="text-xs font-bold text-slate-800 block mb-2">Peças Solicitadas:</span>
+          <div id="track-items-list" class="space-y-1.5 text-xs">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Pix Payment Box -->
+        <div id="track-pix-box" class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200 space-y-2">
+          <div class="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+            <i data-lucide="qr-code" class="w-4 h-4 text-emerald-600"></i>
+            <span>Pagar Comissão via Pix</span>
+          </div>
+          <p class="text-[11px] text-emerald-800">Copie a chave Pix abaixo e envie o comprovante ao assessor:</p>
+          <div class="flex items-center justify-between gap-2 bg-white p-2 rounded-xl border border-emerald-300">
+            <span id="track-pix-key" class="font-mono text-xs font-bold text-emerald-700 select-all truncate">-</span>
+            <button onclick="app.copyTrackPixKey()" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1 shrink-0">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>Copiar Pix</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

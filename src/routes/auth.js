@@ -1,4 +1,4 @@
-﻿const { queryGet, queryRun } = require('../db/client');
+const { queryGet, queryRun } = require('../db/client');
 const { seedUserDefaults } = require('../db/migrations');
 const { hashPassword, verifyPassword, generateSessionToken } = require('../utils/crypto');
 const { sendJson, sendError, parseJsonBody } = require('../utils/http');
@@ -15,7 +15,7 @@ async function handleAuthRoutes(pathname, req, res, session) {
     }
 
     const body = await parseJsonBody(req);
-    const { username, password, confirmPassword } = body;
+    const { username, password, confirmPassword, role, assessor_id } = body;
 
     if (!username || !password) {
       return sendError(res, 400, 'Informe usuário e senha para cadastro.');
@@ -39,15 +39,20 @@ async function handleAuthRoutes(pathname, req, res, session) {
       return sendError(res, 400, 'Este nome de usuário já está cadastrado.');
     }
 
+    const userRole = (role === 'cliente') ? 'cliente' : 'assessor';
+    const assessorIdVal = assessor_id ? parseInt(assessor_id, 10) : null;
+
     const { hash, salt } = hashPassword(password);
     const now = new Date().toISOString();
     const insertResult = await queryRun(
-      "INSERT INTO users (username, password_hash, salt, created_at) VALUES (?, ?, ?, ?)",
-      [cleanUsername, hash, salt, now]
+      "INSERT INTO users (username, password_hash, salt, role, assessor_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      [cleanUsername, hash, salt, userRole, assessorIdVal, now]
     );
 
     const userId = insertResult.lastInsertRowid;
-    await seedUserDefaults(userId);
+    if (userRole === 'assessor') {
+      await seedUserDefaults(userId);
+    }
 
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -61,7 +66,7 @@ async function handleAuthRoutes(pathname, req, res, session) {
 
     return sendJson(res, 201, {
       token,
-      user: { id: userId, username: cleanUsername },
+      user: { id: userId, username: cleanUsername, role: userRole, assessor_id: assessorIdVal },
       message: 'Conta criada com sucesso!'
     });
   }
@@ -89,7 +94,10 @@ async function handleAuthRoutes(pathname, req, res, session) {
     // Success: clear rate limit key
     clearRateLimit(rateKey);
 
-    await seedUserDefaults(user.id);
+    const userRole = user.role || 'assessor';
+    if (userRole === 'assessor') {
+      await seedUserDefaults(user.id);
+    }
 
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -102,7 +110,7 @@ async function handleAuthRoutes(pathname, req, res, session) {
 
     return sendJson(res, 200, {
       token,
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, role: userRole, assessor_id: user.assessor_id },
       message: 'Login realizado com sucesso!'
     });
   }
@@ -112,7 +120,15 @@ async function handleAuthRoutes(pathname, req, res, session) {
 
   // 3. Me: GET /api/auth/me
   if (pathname === '/api/auth/me' && req.method === 'GET') {
-    return sendJson(res, 200, { user: { id: session.user_id, username: session.username } });
+    const user = await queryGet("SELECT id, username, role, assessor_id FROM users WHERE id = ?", [session.user_id]);
+    return sendJson(res, 200, {
+      user: {
+        id: session.user_id,
+        username: session.username,
+        role: user ? (user.role || 'assessor') : 'assessor',
+        assessor_id: user ? user.assessor_id : null
+      }
+    });
   }
 
   // 4. Logout: POST /api/auth/logout

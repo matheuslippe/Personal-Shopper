@@ -1,4 +1,4 @@
-﻿const { queryAll, queryGet, queryRun, formatOrderRow } = require('../db/client');
+const { queryAll, queryGet, queryRun, formatOrderRow } = require('../db/client');
 const { sendJson, sendError, parseJsonBody } = require('../utils/http');
 
 async function handleOrderRoutes(pathname, req, res, session, searchParams) {
@@ -229,9 +229,11 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
       pDate = new Date().toISOString().split('T')[0];
     }
 
+    const tracking_code = 'TRK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const result = await queryRun(`
-      INSERT INTO orders (user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       userId,
       client_name.trim(),
@@ -246,6 +248,7 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
       status,
       (notes || '').trim(),
       itemsJsonStr,
+      tracking_code,
       now,
       now
     ]);

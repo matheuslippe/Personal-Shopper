@@ -36,6 +36,12 @@ const app = {
 
   // --- INITIALIZATION ---
   init() {
+    // Check if URL has tracking query param: ?tracking=TRK-XXXX
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackCode = urlParams.get('tracking') || window.location.hash.replace('#tracking=', '');
+    if (trackCode && trackCode.startsWith('TRK-')) {
+      this.openPublicTrackingModal(trackCode);
+    }
     this.checkAuth();
   },
 
@@ -71,8 +77,22 @@ const app = {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     if (this.user) {
-      document.getElementById('user-display').textContent = this.user.username;
+      const roleLabel = this.user.role === 'cliente' ? 'Cliente' : 'Assessor';
+      document.getElementById('user-display').textContent = `${this.user.username} (${roleLabel})`;
       document.getElementById('user-avatar').textContent = this.user.username.slice(0, 2).toUpperCase();
+
+      // Role-based UI adaptation
+      const isClient = this.user.role === 'cliente';
+      const assessorNavs = document.querySelectorAll('.assessor-only-nav');
+      assessorNavs.forEach(el => {
+        if (isClient) el.classList.add('hidden');
+        else el.classList.remove('hidden');
+      });
+
+      // If client, force view to client-portal
+      if (isClient) {
+        this.switchTab('client-portal');
+      }
     }
     lucide.createIcons();
   },
@@ -164,8 +184,8 @@ const app = {
         errBox.textContent = 'As senhas digitadas não coincidem.';
         errBox.classList.remove('hidden');
       }
-      return;
-    }
+    const roleRadio = document.querySelector('input[name="register-role"]:checked');
+    const role = roleRadio ? roleRadio.value : 'assessor';
 
     btn.disabled = true;
     btn.innerHTML = `<span>Criando conta...</span>`;
@@ -174,7 +194,7 @@ const app = {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, confirmPassword })
+        body: JSON.stringify({ username, password, confirmPassword, role })
       });
       const data = await res.json();
 
@@ -270,6 +290,13 @@ const app = {
         if (rateEl) rateEl.textContent = `R$ ${rate.replace('.', ',')}`;
         const inputEl = document.getElementById('setting-default-commission');
         if (inputEl) inputEl.value = this.settings.default_commission || '10.00';
+
+        const pixKeyEl = document.getElementById('setting-pix-key');
+        const pixNameEl = document.getElementById('setting-pix-name');
+        const pixTypeEl = document.getElementById('setting-pix-type');
+        if (pixKeyEl) pixKeyEl.value = this.settings.pix_key || '';
+        if (pixNameEl) pixNameEl.value = this.settings.pix_name || '';
+        if (pixTypeEl) pixTypeEl.value = this.settings.pix_type || 'Chave Aleatória';
       }
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -321,7 +348,8 @@ const app = {
       overview: { title: 'Visão Geral', sub: '| Resumo consolidado de faturamento e despesas' },
       sales: { title: 'Vendas & Assessorias', sub: '| Controle de pedidos, clientes e comissões' },
       expenses: { title: 'Financeiro Pessoal', sub: '| Controle de gastos do dia a dia e saldo líquido' },
-      settings: { title: 'Categorias & Ajustes', sub: '| Gerenciamento de categorias, comissões e segurança' }
+      settings: { title: 'Categorias & Ajustes', sub: '| Gerenciamento de categorias, comissões e segurança' },
+      'client-portal': { title: 'Portal do Cliente', sub: '| Acompanhamento de pedidos e pagamentos' }
     };
     if (titles[tabId]) {
       document.getElementById('tab-title').textContent = titles[tabId].title;
@@ -348,6 +376,8 @@ const app = {
       await this.loadExpensesDashboardMetrics();
     } else if (this.currentTab === 'settings') {
       this.renderCategoriesManagement();
+    } else if (this.currentTab === 'client-portal') {
+      await this.loadClientOrders();
     }
   },
 
@@ -700,6 +730,9 @@ const app = {
           <!-- Action Buttons -->
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <div class="flex items-center justify-end gap-1">
+              <button onclick="app.copyTrackingLink('${o.tracking_code || ''}')" class="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-white" title="Copiar Link de Rastreio do Cliente">
+                <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+              </button>
               <button onclick="app.editOrder(${o.id})" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-white" title="Editar Pedido">
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
               </button>
@@ -1569,6 +1602,306 @@ const app = {
     } catch (err) {
       this.showToast(err.message, 'error');
     }
+  },
+
+  async savePixSettings(e) {
+    e.preventDefault();
+    const pix_type = document.getElementById('setting-pix-type').value;
+    const pix_key = document.getElementById('setting-pix-key').value.trim();
+    const pix_name = document.getElementById('setting-pix-name').value.trim();
+
+    try {
+      await this.apiPost('/api/settings', { pix_type, pix_key, pix_name });
+      this.settings.pix_type = pix_type;
+      this.settings.pix_key = pix_key;
+      this.settings.pix_name = pix_name;
+      this.showToast('Dados Pix do Assessor salvos com sucesso!', 'success');
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  // ================= VIEW 5: PORTAL DO CLIENTE =================
+  clientOrders: [],
+  clientAssessor: null,
+
+  async loadClientOrders() {
+    try {
+      this.clientOrders = await this.apiGet('/api/client/orders');
+      this.renderClientOrders(this.clientOrders);
+      await this.loadClientAssessorInfo();
+      lucide.createIcons();
+    } catch (err) {
+      console.error('Error loading client orders:', err);
+    }
+  },
+
+  async loadClientAssessorInfo() {
+    try {
+      const data = await this.apiGet('/api/client/assessor-info');
+      if (data && data.assessor) {
+        this.clientAssessor = data.assessor;
+      }
+    } catch (e) {}
+  },
+
+  renderClientOrders(orders) {
+    const container = document.getElementById('client-orders-container');
+    const emptyState = document.getElementById('client-orders-empty-state');
+    const badge = document.getElementById('client-orders-count-badge');
+
+    badge.textContent = `${(orders || []).length} pedidos`;
+
+    if (!orders || orders.length === 0) {
+      container.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+    container.innerHTML = orders.map(o => {
+      const isPaid = o.status === 'pago';
+      const isLate = o.status === 'atrasado';
+      const statusColor = isPaid ? 'bg-emerald-500 text-white' : (isLate ? 'bg-rose-500 text-white' : 'bg-amber-500 text-white');
+      const statusLabel = isPaid ? 'Pago' : (isLate ? 'Atrasado' : 'Pendente de Pagamento');
+
+      return `
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-shadow">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                  ${o.tracking_code || 'TRK-' + o.id}
+                </span>
+                <span class="text-xs text-slate-400">• Pedido feito em ${this.formatDateBR(o.order_date)}</span>
+              </div>
+              <h4 class="font-bold text-slate-900 text-sm mt-1">${this.escapeHtml(o.items_desc)}</h4>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold ${statusColor}">
+              ${statusLabel}
+            </span>
+          </div>
+
+          <!-- Stepper Visualization -->
+          <div class="grid grid-cols-3 gap-2 text-center text-xs">
+            <div class="p-2.5 rounded-xl ${o.status ? 'bg-emerald-50 text-emerald-800 font-bold' : 'bg-slate-50 text-slate-400'}">
+              <span class="block text-base mb-0.5">📝</span>
+              <span>1. Solicitado</span>
+            </div>
+            <div class="p-2.5 rounded-xl ${o.status === 'pago' || o.supplier ? 'bg-emerald-50 text-emerald-800 font-bold' : 'bg-slate-50 text-slate-400'}">
+              <span class="block text-base mb-0.5">🛍️</span>
+              <span>2. Em Compras</span>
+            </div>
+            <div class="p-2.5 rounded-xl ${isPaid ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-50 text-slate-400'}">
+              <span class="block text-base mb-0.5">${isPaid ? '✅' : '💳'}</span>
+              <span>3. ${isPaid ? 'Comissão Paga' : 'Pagar Comissão'}</span>
+            </div>
+          </div>
+
+          <!-- Items Breakdown & Pix Button -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div class="text-xs">
+              <span class="text-slate-500 font-medium">Comissão Total da Assessoria:</span>
+              <span class="font-black text-slate-900 text-sm ml-1">${this.formatCurrency(o.commission_total)}</span>
+              <span class="text-slate-400 ml-1">(${o.quantity} peças)</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="app.openPublicTrackingModal('${o.tracking_code}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                <span>Ver Rastreio</span>
+              </button>
+              ${!isPaid ? `
+                <button onclick="app.openClientPixModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5">
+                  <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                  <span>Pagar Pix</span>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  openClientRequestModal() {
+    const modal = document.getElementById('modal-client-request');
+    const form = document.getElementById('client-request-form');
+    form.reset();
+    const container = document.getElementById('client-req-items-container');
+    container.innerHTML = '';
+    this.addClientRequestItemRow();
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  addClientRequestItemRow() {
+    const container = document.getElementById('client-req-items-container');
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200';
+    div.innerHTML = `
+      <select class="client-req-item-type bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-800">
+        <option value="tenis">👟 Tênis</option>
+        <option value="roupa">👕 Roupa</option>
+        <option value="blusa">🧥 Blusa</option>
+        <option value="outro">📦 Outro</option>
+      </select>
+      <input type="text" required placeholder="Descrição (ex: Nike Air Force Branco, Camisa Polo...)"
+        class="client-req-item-desc flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-emerald-500">
+      <input type="number" min="1" value="1" placeholder="Qtd"
+        class="client-req-item-qty w-16 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-center font-bold text-slate-800">
+      <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-rose-600 rounded" title="Remover item">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+      </button>
+    `;
+    container.appendChild(div);
+    lucide.createIcons();
+  },
+
+  async saveClientRequest(e) {
+    e.preventDefault();
+    const supplier = document.getElementById('client-req-supplier').value.trim();
+    const notes = document.getElementById('client-req-notes').value.trim();
+    const container = document.getElementById('client-req-items-container');
+    const rows = container.querySelectorAll('div');
+
+    const items = [];
+    rows.forEach(r => {
+      const type = r.querySelector('.client-req-item-type').value;
+      const desc = r.querySelector('.client-req-item-desc').value.trim();
+      const qty = parseInt(r.querySelector('.client-req-item-qty').value, 10) || 1;
+      if (desc) {
+        items.push({ item_type: type, items_desc: desc, quantity: qty });
+      }
+    });
+
+    if (items.length === 0) {
+      this.showToast('Informe a descrição de pelo menos uma peça.', 'error');
+      return;
+    }
+
+    try {
+      await this.apiPost('/api/client/request', { items, supplier, notes });
+      this.showToast('Solicitação de assessoria enviada com sucesso!', 'success');
+      this.closeModal('modal-client-request');
+      await this.loadClientOrders();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  openClientPixModal() {
+    const modal = document.getElementById('modal-client-pix');
+    const ass = this.clientAssessor || { username: 'Assessor', pix_key: '', pix_name: '', pix_type: 'Chave Pix' };
+
+    document.getElementById('client-pix-beneficiary').textContent = ass.pix_name || ass.username || 'Assessor Responsável';
+    document.getElementById('client-pix-type').textContent = ass.pix_type || 'Chave Pix';
+    document.getElementById('client-pix-key-val').textContent = ass.pix_key || 'Chave Pix ainda não cadastrada pelo assessor';
+
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  copyClientPixKey() {
+    const key = document.getElementById('client-pix-key-val').textContent;
+    if (!key || key.includes('ainda não cadastrada')) {
+      this.showToast('Chave Pix não configurada pelo assessor.', 'error');
+      return;
+    }
+    navigator.clipboard.writeText(key).then(() => {
+      this.showToast('Chave Pix copiada com sucesso!', 'success');
+    });
+  },
+
+  // --- PUBLIC TRACKING BY CODE ---
+  promptPublicTracking() {
+    const code = prompt('Digite o código de rastreio (Ex: TRK-ABC123):');
+    if (code && code.trim()) {
+      this.openPublicTrackingModal(code.trim().toUpperCase());
+    }
+  },
+
+  async openPublicTrackingModal(code) {
+    try {
+      const res = await fetch(`/api/tracking/${encodeURIComponent(code.trim().toUpperCase())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Pedido não encontrado.');
+      }
+
+      const o = data.order;
+      const ass = data.assessor;
+
+      document.getElementById('track-code-display').textContent = o.tracking_code || code;
+      document.getElementById('track-client-name').textContent = o.client_name || '-';
+      document.getElementById('track-order-date').textContent = this.formatDateBR(o.order_date);
+      document.getElementById('track-total-qty').textContent = `${o.quantity} peças`;
+      document.getElementById('track-total-comm').textContent = this.formatCurrency(o.commission_total);
+
+      // Stepper
+      const isPaid = o.status === 'pago';
+      const stepperEl = document.getElementById('track-stepper');
+      stepperEl.innerHTML = `
+        <div class="flex-1 text-center py-2 px-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold">
+          <span class="block text-sm">📝</span>
+          <span>Solicitado</span>
+        </div>
+        <div class="w-4 h-0.5 bg-slate-300"></div>
+        <div class="flex-1 text-center py-2 px-1 rounded-xl ${o.supplier || isPaid ? 'bg-emerald-100 text-emerald-900 font-bold' : 'bg-slate-100 text-slate-400'}">
+          <span class="block text-sm">🛍️</span>
+          <span>Em Compras</span>
+        </div>
+        <div class="w-4 h-0.5 bg-slate-300"></div>
+        <div class="flex-1 text-center py-2 px-1 rounded-xl ${isPaid ? 'bg-emerald-600 text-white font-bold' : 'bg-slate-100 text-slate-400'}">
+          <span class="block text-sm">${isPaid ? '✅' : '💳'}</span>
+          <span>${isPaid ? 'Pago' : 'Pendente'}</span>
+        </div>
+      `;
+
+      // Items list
+      const itemsContainer = document.getElementById('track-items-list');
+      itemsContainer.innerHTML = (o.items || []).map(it => `
+        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100">
+          <span class="font-medium text-slate-800"><b>${it.quantity}x</b> ${this.escapeHtml(it.items_desc)}</span>
+          <span class="text-slate-500 font-semibold">${this.formatCurrency(it.commission_total || (it.quantity * it.commission_unit))}</span>
+        </div>
+      `).join('');
+
+      // Pix Key
+      const pixBox = document.getElementById('track-pix-box');
+      const pixKeyEl = document.getElementById('track-pix-key');
+      if (ass && ass.pix_key && !isPaid) {
+        pixBox.classList.remove('hidden');
+        pixKeyEl.textContent = ass.pix_key;
+      } else {
+        pixBox.classList.add('hidden');
+      }
+
+      document.getElementById('modal-public-tracking').classList.remove('hidden');
+      lucide.createIcons();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  copyTrackPixKey() {
+    const key = document.getElementById('track-pix-key').textContent;
+    if (key) {
+      navigator.clipboard.writeText(key).then(() => {
+        this.showToast('Chave Pix copiada com sucesso!', 'success');
+      });
+    }
+  },
+
+  copyTrackingLink(trackingCode) {
+    if (!trackingCode) {
+      this.showToast('Código de rastreio indisponível para este pedido.', 'error');
+      return;
+    }
+    const url = `${window.location.origin}/?tracking=${trackingCode}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showToast('Link de acompanhamento copiado! Envie ao cliente via WhatsApp.', 'success');
+    });
   },
 
   async handleChangePassword(e) {

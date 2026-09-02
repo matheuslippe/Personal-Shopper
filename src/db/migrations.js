@@ -1,4 +1,4 @@
-﻿const { db, queryAll, queryGet, queryRun } = require('./client');
+const { db, queryAll, queryGet, queryRun } = require('./client');
 const { hashPassword } = require('../utils/crypto');
 const logger = require('../utils/logger');
 
@@ -39,6 +39,8 @@ async function initDatabase() {
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       salt TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'assessor', -- 'assessor' ou 'cliente'
+      assessor_id INTEGER,
       created_at TEXT NOT NULL
     )
   `);
@@ -78,6 +80,7 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS orders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL DEFAULT 1,
+      client_user_id INTEGER,
       client_name TEXT NOT NULL,
       supplier TEXT DEFAULT '',
       items_desc TEXT NOT NULL,
@@ -90,6 +93,7 @@ async function initDatabase() {
       status TEXT NOT NULL DEFAULT 'pendente', -- 'pendente', 'atrasado', 'pago'
       notes TEXT DEFAULT '',
       items_json TEXT DEFAULT '[]',
+      tracking_code TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -110,10 +114,23 @@ async function initDatabase() {
   `);
 
   // Run migrations for existing databases
+  try { await db.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'assessor'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN assessor_id INTEGER"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN client_user_id INTEGER"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN tracking_code TEXT"); } catch (e) {}
   try { await db.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
   try { await db.execute("ALTER TABLE settings ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
+
+  // Backfill tracking codes for existing orders
+  try {
+    const ordersWithoutTrack = await queryAll("SELECT id FROM orders WHERE tracking_code IS NULL OR tracking_code = ''");
+    for (const ord of ordersWithoutTrack) {
+      const code = 'TRK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      await queryRun("UPDATE orders SET tracking_code = ? WHERE id = ?", [code, ord.id]);
+    }
+  } catch (e) {}
 
   // Check if settings table has old global PRIMARY KEY on key
   try {
