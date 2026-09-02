@@ -83,15 +83,20 @@ const app = {
 
       // Role-based UI adaptation
       const isClient = this.user.role === 'cliente';
-      const assessorNavs = document.querySelectorAll('.assessor-only-nav');
-      assessorNavs.forEach(el => {
+      document.querySelectorAll('.assessor-only').forEach(el => {
         if (isClient) el.classList.add('hidden');
         else el.classList.remove('hidden');
       });
+      document.querySelectorAll('.client-only').forEach(el => {
+        if (isClient) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      });
 
-      // If client, force view to client-portal
+      // If client, force view to client-portal, else overview
       if (isClient) {
         this.switchTab('client-portal');
+      } else {
+        this.switchTab('overview');
       }
     }
     lucide.createIcons();
@@ -593,6 +598,22 @@ const app = {
       this.orders = await this.apiGet(url);
       this.renderOrdersTable(this.orders);
       this.updateDatalists();
+
+      // Update pending badge for assessor
+      const pendingCount = (this.orders || []).filter(o => o.status === 'pendente').length;
+      const b1 = document.getElementById('badge-sales-pending');
+      const b2 = document.getElementById('badge-sales-pending-m');
+      if (b1) {
+        b1.textContent = pendingCount;
+        if (pendingCount > 0) b1.classList.remove('hidden');
+        else b1.classList.add('hidden');
+      }
+      if (b2) {
+        b2.textContent = pendingCount;
+        if (pendingCount > 0) b2.classList.remove('hidden');
+        else b2.classList.add('hidden');
+      }
+
       lucide.createIcons();
     } catch (err) {
       console.error('Error loading orders:', err);
@@ -1727,15 +1748,44 @@ const app = {
     }).join('');
   },
 
-  openClientRequestModal() {
+  async openClientRequestModal() {
     const modal = document.getElementById('modal-client-request');
     const form = document.getElementById('client-request-form');
     form.reset();
+
+    // Auto-fill client name
+    const clientBadge = document.getElementById('client-req-username-badge');
+    if (clientBadge && this.user) {
+      clientBadge.textContent = this.user.username;
+    }
+
+    // Load available assessors
+    await this.loadAvailableAssessors();
+
     const container = document.getElementById('client-req-items-container');
     container.innerHTML = '';
     this.addClientRequestItemRow();
     modal.classList.remove('hidden');
     lucide.createIcons();
+  },
+
+  async loadAvailableAssessors() {
+    const select = document.getElementById('client-req-assessor');
+    if (!select) return;
+    try {
+      const assessors = await this.apiGet('/api/client/assessors');
+      if (Array.isArray(assessors) && assessors.length > 0) {
+        select.innerHTML = assessors.map(a => `
+          <option value="${a.id}" ${this.user && this.user.assessor_id === a.id ? 'selected' : ''}>
+            👤 ${this.escapeHtml(a.username)} (Comissão: ${this.formatCurrency(a.default_commission)}/peça)
+          </option>
+        `).join('');
+      } else {
+        select.innerHTML = `<option value="1">👤 Assessor Principal</option>`;
+      }
+    } catch (e) {
+      select.innerHTML = `<option value="1">👤 Assessor Principal</option>`;
+    }
   },
 
   addClientRequestItemRow() {
@@ -1765,6 +1815,9 @@ const app = {
     e.preventDefault();
     const supplier = document.getElementById('client-req-supplier').value.trim();
     const notes = document.getElementById('client-req-notes').value.trim();
+    const assessorSelect = document.getElementById('client-req-assessor');
+    const assessor_id = assessorSelect ? parseInt(assessorSelect.value, 10) : null;
+
     const container = document.getElementById('client-req-items-container');
     const rows = container.querySelectorAll('div');
 
@@ -1772,7 +1825,7 @@ const app = {
     rows.forEach(r => {
       const type = r.querySelector('.client-req-item-type').value;
       const desc = r.querySelector('.client-req-item-desc').value.trim();
-      const qty = parseInt(r.querySelector('.client-req-item-qty').value, 10) || 1;
+      const qty = parseInt(r.querySelector('.client-req-item-qty'), 10) || parseInt(r.querySelector('.client-req-item-qty').value, 10) || 1;
       if (desc) {
         items.push({ item_type: type, items_desc: desc, quantity: qty });
       }
@@ -1784,7 +1837,7 @@ const app = {
     }
 
     try {
-      await this.apiPost('/api/client/request', { items, supplier, notes });
+      await this.apiPost('/api/client/request', { items, supplier, notes, assessor_id });
       this.showToast('Solicitação de assessoria enviada com sucesso!', 'success');
       this.closeModal('modal-client-request');
       await this.loadClientOrders();

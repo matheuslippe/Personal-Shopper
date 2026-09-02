@@ -205,7 +205,7 @@
       </div>
 
       <!-- Quick Action Buttons -->
-      <div class="p-4 space-y-2">
+      <div id="sidebar-assessor-actions" class="p-4 space-y-2 assessor-only">
         <button onclick="app.openOrderModal()" class="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-all">
           <i data-lucide="plus-circle" class="w-4 h-4"></i>
           <span>Novo Pedido / Assessoria</span>
@@ -216,27 +216,49 @@
         </button>
       </div>
 
+      <div id="sidebar-client-actions" class="p-4 space-y-2 client-only hidden">
+        <button onclick="app.openClientRequestModal()" class="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>+ Solicitar Assessoria</span>
+        </button>
+      </div>
+
       <!-- Navigation Links -->
       <nav class="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        <button onclick="app.switchTab('overview')" data-nav="overview" class="nav-link active w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
-          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-          <span>Visão Geral</span>
-        </button>
-        <button onclick="app.switchTab('sales')" data-nav="sales" class="nav-link w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
-          <div class="flex items-center gap-3">
-            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-            <span>Vendas & Assessorias</span>
-          </div>
-          <span id="badge-sales-pending" class="hidden text-xs bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
-        </button>
-        <button onclick="app.switchTab('expenses')" data-nav="expenses" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
-          <i data-lucide="wallet" class="w-5 h-5"></i>
-          <span>Financeiro Pessoal</span>
-        </button>
-        <button onclick="app.switchTab('settings')" data-nav="settings" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
-          <i data-lucide="sliders" class="w-5 h-5"></i>
-          <span>Categorias & Ajustes</span>
-        </button>
+        <!-- ASSESSOR NAV LINKS -->
+        <div id="nav-assessor-links" class="space-y-1 assessor-only">
+          <button onclick="app.switchTab('overview')" data-nav="overview" class="nav-link active w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Visão Geral</span>
+          </button>
+          <button onclick="app.switchTab('sales')" data-nav="sales" class="nav-link w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+            <div class="flex items-center gap-3">
+              <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+              <span>Vendas & Assessorias</span>
+            </div>
+            <span id="badge-sales-pending" class="hidden text-xs bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+          <button onclick="app.switchTab('expenses')" data-nav="expenses" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+            <i data-lucide="wallet" class="w-5 h-5"></i>
+            <span>Financeiro Pessoal</span>
+          </button>
+          <button onclick="app.switchTab('settings')" data-nav="settings" class="nav-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-colors">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+            <span>Categorias & Ajustes</span>
+          </button>
+        </div>
+
+        <!-- CLIENT NAV LINKS -->
+        <div id="nav-client-links" class="space-y-1 client-only hidden">
+          <button onclick="app.switchTab('client-portal')" data-nav="client-portal" class="nav-link active w-full flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-emerald-800 bg-emerald-50 rounded-xl transition-colors">
+            <i data-lucide="package-check" class="w-5 h-5 text-emerald-600"></i>
+            <span>Meus Pedidos</span>
+          </button>
+          <button onclick="app.openClientPixModal()" class="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl transition-colors">
+            <i data-lucide="qr-code" class="w-5 h-5 text-emerald-600"></i>
+            <span>Pagar Comissão (Pix)</span>
+          </button>
+        </div>
       </nav>
 
       <!-- User footer -->
@@ -872,29 +894,47 @@
 
     <!-- MOBILE BOTTOM NAVIGATION BAR -->
     <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-40 px-2 shadow-lg select-none">
-      <button onclick="app.switchTab('overview')" data-nav-m="overview" class="flex flex-col items-center justify-center flex-1 py-1 text-indigo-600 font-semibold text-[10px] transition-all">
-        <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
-        <span>Geral</span>
-      </button>
-      <button onclick="app.switchTab('sales')" data-nav-m="sales" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all relative">
-        <i data-lucide="shopping-bag" class="w-5 h-5 mb-0.5"></i>
-        <span>Vendas</span>
-        <span id="badge-sales-pending-m" class="hidden absolute top-1 right-5 w-2 h-2 bg-amber-500 rounded-full"></span>
-      </button>
+      <!-- Assessor Mobile Nav -->
+      <div id="nav-m-assessor" class="flex items-center justify-around w-full assessor-only">
+        <button onclick="app.switchTab('overview')" data-nav-m="overview" class="flex flex-col items-center justify-center flex-1 py-1 text-indigo-600 font-semibold text-[10px] transition-all">
+          <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+          <span>Geral</span>
+        </button>
+        <button onclick="app.switchTab('sales')" data-nav-m="sales" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all relative">
+          <i data-lucide="shopping-bag" class="w-5 h-5 mb-0.5"></i>
+          <span>Vendas</span>
+          <span id="badge-sales-pending-m" class="hidden absolute top-1 right-5 w-2 h-2 bg-amber-500 rounded-full"></span>
+        </button>
 
-      <!-- Central FAB on mobile for fast input -->
-      <button onclick="app.openQuickActionsModal()" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-300 active:scale-95 transition-all">
-        <i data-lucide="plus" class="w-6 h-6"></i>
-      </button>
+        <!-- Central FAB on mobile for fast input -->
+        <button onclick="app.openQuickActionsModal()" class="w-12 h-12 -mt-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-300 active:scale-95 transition-all">
+          <i data-lucide="plus" class="w-6 h-6"></i>
+        </button>
 
-      <button onclick="app.switchTab('expenses')" data-nav-m="expenses" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
-        <i data-lucide="wallet" class="w-5 h-5 mb-0.5"></i>
-        <span>Gastos</span>
-      </button>
-      <button onclick="app.switchTab('settings')" data-nav-m="settings" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
-        <i data-lucide="sliders" class="w-5 h-5 mb-0.5"></i>
-        <span>Ajustes</span>
-      </button>
+        <button onclick="app.switchTab('expenses')" data-nav-m="expenses" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
+          <i data-lucide="wallet" class="w-5 h-5 mb-0.5"></i>
+          <span>Gastos</span>
+        </button>
+        <button onclick="app.switchTab('settings')" data-nav-m="settings" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-400 font-medium text-[10px] transition-all">
+          <i data-lucide="sliders" class="w-5 h-5 mb-0.5"></i>
+          <span>Ajustes</span>
+        </button>
+      </div>
+
+      <!-- Client Mobile Nav -->
+      <div id="nav-m-client" class="flex items-center justify-around w-full client-only hidden">
+        <button onclick="app.switchTab('client-portal')" class="flex flex-col items-center justify-center flex-1 py-1 text-emerald-700 font-bold text-[10px] transition-all">
+          <i data-lucide="package-check" class="w-5 h-5 mb-0.5"></i>
+          <span>Meus Pedidos</span>
+        </button>
+        <button onclick="app.openClientRequestModal()" class="w-12 h-12 -mt-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-300 active:scale-95 transition-all">
+          <i data-lucide="plus" class="w-6 h-6"></i>
+        </button>
+        <button onclick="app.openClientPixModal()" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 font-medium text-[10px] transition-all">
+          <i data-lucide="qr-code" class="w-5 h-5 mb-0.5 text-emerald-600"></i>
+          <span>Pagar Pix</span>
+        </button>
+      </div>
     </nav>
   </div>
 
@@ -1211,6 +1251,24 @@
       </div>
 
       <form id="client-request-form" onsubmit="app.saveClientRequest(event)" class="p-6 space-y-4 overflow-y-auto flex-1">
+        <!-- Client Identity Banner -->
+        <div class="flex items-center justify-between p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100 text-xs">
+          <span class="text-slate-600 font-medium flex items-center gap-1.5">
+            <i data-lucide="user" class="w-4 h-4 text-emerald-600"></i>
+            <span>Cliente Solicitante:</span>
+          </span>
+          <span id="client-req-username-badge" class="font-bold text-emerald-800 bg-white px-3 py-1 rounded-xl border border-emerald-200 shadow-2xs">matheus</span>
+        </div>
+
+        <!-- Assessor Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Qual Assessor você deseja que atenda este pedido? *</label>
+          <select id="client-req-assessor" required
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white">
+            <!-- Loaded dynamically via app.loadAvailableAssessors() -->
+          </select>
+        </div>
+
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Fornecedor / Loja de Preferência (Opcional)</label>
           <input type="text" id="client-req-supplier"

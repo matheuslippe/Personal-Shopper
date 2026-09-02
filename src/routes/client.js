@@ -1,4 +1,4 @@
-﻿const { queryAll, queryGet, queryRun, formatOrderRow } = require('../db/client');
+const { queryAll, queryGet, queryRun, formatOrderRow } = require('../db/client');
 const { sendJson, sendError, parseJsonBody } = require('../utils/http');
 
 function generateTrackingCode() {
@@ -163,6 +163,23 @@ async function handleClientRoutes(pathname, req, res, session) {
         pix_type: pixSettings.pix_type || 'Chave Pix'
       }
     });
+  }
+
+  // 5. List All Available Assessors: GET /api/client/assessors
+  if (pathname === '/api/client/assessors' && req.method === 'GET') {
+    const assessors = await queryAll(`
+      SELECT u.id, u.username, s.value as default_commission 
+      FROM users u 
+      LEFT JOIN settings s ON u.id = s.user_id AND s.key = 'default_commission'
+      WHERE u.role = 'assessor' OR u.role IS NULL
+      ORDER BY u.id ASC
+    `);
+
+    return sendJson(res, 200, assessors.map(a => ({
+      id: a.id,
+      username: a.username,
+      default_commission: parseFloat(a.default_commission) || 10
+    })));
   }
 
   return false;
