@@ -2,13 +2,16 @@
 node_modules/
 npm-debug.log*
 
-# Database (uncomment if you want local database to remain private)
-# dados/*.db
-# dados/*.db-wal
-# dados/*.db-shm
+# Database files
+dados/*.db
+dados/*.db-wal
+dados/*.db-shm
+*.db
+*.sqlite
 
 # Environment & Temp
 .env
+.env.local
 .DS_Store
 Thumbs.db
 *.log
