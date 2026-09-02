@@ -118,11 +118,15 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
         pDate = null;
       }
 
+      const clientUser = await queryGet("SELECT id FROM users WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))", [client_name.trim()]);
+      const client_user_id = clientUser ? clientUser.id : null;
+
       await queryRun(`
         UPDATE orders 
-        SET client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, updated_at = ?
+        SET client_user_id = ?, client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
       `, [
+        client_user_id,
         client_name.trim(),
         (supplier || '').trim(),
         summaryDesc,
@@ -230,12 +234,15 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
     }
 
     const tracking_code = 'TRK-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const clientUser = await queryGet("SELECT id FROM users WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))", [client_name.trim()]);
+    const client_user_id = clientUser ? clientUser.id : null;
 
     const result = await queryRun(`
-      INSERT INTO orders (user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       userId,
+      client_user_id,
       client_name.trim(),
       (supplier || '').trim(),
       summaryDesc,

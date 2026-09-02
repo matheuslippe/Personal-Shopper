@@ -1791,7 +1791,7 @@ const app = {
   addClientRequestItemRow() {
     const container = document.getElementById('client-req-items-container');
     const div = document.createElement('div');
-    div.className = 'flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200';
+    div.className = 'client-req-item-row flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200';
     div.innerHTML = `
       <select class="client-req-item-type bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-800">
         <option value="tenis">👟 Tênis</option>
@@ -1819,15 +1819,19 @@ const app = {
     const assessor_id = assessorSelect ? parseInt(assessorSelect.value, 10) : null;
 
     const container = document.getElementById('client-req-items-container');
-    const rows = container.querySelectorAll('div');
+    const rows = container.querySelectorAll('.client-req-item-row');
 
     const items = [];
     rows.forEach(r => {
-      const type = r.querySelector('.client-req-item-type').value;
-      const desc = r.querySelector('.client-req-item-desc').value.trim();
-      const qty = parseInt(r.querySelector('.client-req-item-qty'), 10) || parseInt(r.querySelector('.client-req-item-qty').value, 10) || 1;
-      if (desc) {
-        items.push({ item_type: type, items_desc: desc, quantity: qty });
+      const typeEl = r.querySelector('.client-req-item-type');
+      const descEl = r.querySelector('.client-req-item-desc');
+      const qtyEl = r.querySelector('.client-req-item-qty');
+      if (typeEl && descEl && qtyEl) {
+        const desc = descEl.value.trim();
+        const qty = Math.max(1, parseInt(qtyEl.value, 10) || 1);
+        if (desc) {
+          items.push({ item_type: typeEl.value, items_desc: desc, quantity: qty });
+        }
       }
     });
 
