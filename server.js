@@ -93,10 +93,16 @@ const server = http.createServer(async (req, res) => {
 if (require.main === module) {
   initDatabase().then(() => {
     server.listen(PORT, '0.0.0.0', () => {
+      const isProduction = process.env.RENDER || process.env.NODE_ENV === 'production';
       logger.info('=======================================================');
-      logger.info(' 🚀 Sistema de Assessoria & Financeiro Pessoal Ativo!');
-      logger.info(` 🌐 Acesse: http://localhost:${PORT}`);
-      logger.info(' 👤 Usuário padrão: admin | Senha: admin123');
+      logger.info(' 🚀 Assessoria Express — Sistema Personal Shopper Ativo!');
+      if (isProduction) {
+        logger.info(` 🌍 Servidor rodando em Produção no Render (Porta ${PORT})`);
+        logger.info(' 🔒 Segurança e Isolamento Multi-Tenant habilitados.');
+      } else {
+        logger.info(` 🌐 Acesse Localmente: http://localhost:${PORT}`);
+        logger.info(' 👤 Usuário padrão: admin | Senha: admin123');
+      }
       logger.info('=======================================================');
     });
   }).catch(err => {
