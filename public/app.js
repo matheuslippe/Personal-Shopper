@@ -22,7 +22,9 @@ const app = {
   },
   expensesFilter: {
     categoryId: 'todas',
-    search: ''
+    search: '',
+    startDate: '',
+    endDate: ''
   },
 
   // Chart instances
@@ -1183,6 +1185,12 @@ const app = {
       if (this.expensesFilter.search) {
         url += `&search=${encodeURIComponent(this.expensesFilter.search)}`;
       }
+      if (this.expensesFilter.startDate) {
+        url += `&startDate=${encodeURIComponent(this.expensesFilter.startDate)}`;
+      }
+      if (this.expensesFilter.endDate) {
+        url += `&endDate=${encodeURIComponent(this.expensesFilter.endDate)}`;
+      }
 
       this.expenses = await this.apiGet(url);
       this.renderExpensesTable(this.expenses);
@@ -1348,6 +1356,24 @@ const app = {
       this.expensesFilter.search = document.getElementById('expenses-filter-search').value.trim();
       this.loadExpenses();
     }, 300);
+  },
+
+  onExpenseDateRangeChange() {
+    const start = document.getElementById('expenses-filter-start');
+    const end = document.getElementById('expenses-filter-end');
+    this.expensesFilter.startDate = start ? start.value : '';
+    this.expensesFilter.endDate = end ? end.value : '';
+    this.loadExpenses();
+  },
+
+  clearExpenseDateRange() {
+    const start = document.getElementById('expenses-filter-start');
+    const end = document.getElementById('expenses-filter-end');
+    if (start) start.value = '';
+    if (end) end.value = '';
+    this.expensesFilter.startDate = '';
+    this.expensesFilter.endDate = '';
+    this.loadExpenses();
   },
 
   // --- EXPENSE MODAL (CREATE / EDIT) ---
