@@ -858,7 +858,7 @@
             <div class="pt-3 flex flex-wrap gap-3">
               <button onclick="app.openClientRequestModal()" class="flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl shadow-md transition-all active:scale-95">
                 <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
-                <span>Solicitar Nova Compra / Peças</span>
+                <span>+ Solicitar Nova Compra</span>
               </button>
               <button onclick="app.openClientPixModal()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-bold text-xs rounded-xl border border-emerald-400/30 transition-all">
                 <i data-lucide="qr-code" class="w-4 h-4 text-emerald-300"></i>
@@ -868,14 +868,113 @@
           </div>
         </div>
 
+        <!-- CLIENT DASHBOARD: 4 KPI CARDS -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Card 1: Total Pieces -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <i data-lucide="package" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total de Peças</span>
+              <p id="client-stat-pieces" class="text-lg sm:text-xl font-black text-slate-900">0 peças</p>
+            </div>
+          </div>
+
+          <!-- Card 2: Active Orders -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <i data-lucide="clock" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Em Andamento</span>
+              <p id="client-stat-active" class="text-lg sm:text-xl font-black text-slate-900">0 pedidos</p>
+            </div>
+          </div>
+
+          <!-- Card 3: Pending Commission -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <i data-lucide="alert-circle" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Pix a Pagar</span>
+              <p id="client-stat-pending" class="text-lg sm:text-xl font-black text-rose-600">R$ 0,00</p>
+            </div>
+          </div>
+
+          <!-- Card 4: Paid Commission -->
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <i data-lucide="check-circle" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Comissões Pagas</span>
+              <p id="client-stat-paid" class="text-lg sm:text-xl font-black text-teal-700">R$ 0,00</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLIENT DASHBOARD: CHARTS & INFO ROW -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Item Types Breakdown Doughnut Chart -->
+          <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-600"></i>
+                <h3 class="text-sm font-bold text-slate-900">Minhas Peças por Categoria</h3>
+              </div>
+              <span class="text-[11px] text-slate-400 font-medium">Distribuição de Peças</span>
+            </div>
+            <div class="h-56 relative">
+              <canvas id="chart-client-items"></canvas>
+            </div>
+          </div>
+
+          <!-- Assessor Quick Card -->
+          <div class="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-2xl text-white shadow-md flex flex-col justify-between space-y-4">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">Personal Shopper</span>
+              <h4 id="client-dash-assessor-name" class="text-base font-bold text-white">Assessor Responsável</h4>
+              <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                Seu assessor realiza as compras nas melhores lojas do Brás/Bom Retiro e envia suas peças com agilidade.
+              </p>
+            </div>
+
+            <div class="p-3 bg-white/10 rounded-xl border border-white/10 backdrop-blur-xs space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300">Chave Pix:</span>
+                <span id="client-dash-pix-key" class="font-mono font-bold text-emerald-300 text-[11px] truncate max-w-[150px]">Cadastrada</span>
+              </div>
+              <button onclick="app.openClientPixModal()" class="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                <span>Ver Dados Pix / Pagar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Orders Timeline List -->
         <div class="space-y-4">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <i data-lucide="package-check" class="w-5 h-5 text-emerald-600"></i>
-              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Meus Pedidos de Assessoria</h3>
+              <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Histórico de Pedidos</h3>
+              <span id="client-orders-count-badge" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-lg">0 pedidos</span>
             </div>
-            <span id="client-orders-count-badge" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">0 pedidos</span>
+
+            <!-- Filter Buttons -->
+            <div class="flex items-center gap-2">
+              <button onclick="app.filterClientOrders('todos')" id="btn-filter-client-all" class="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold rounded-xl transition-all">
+                Todos
+              </button>
+              <button onclick="app.filterClientOrders('pendente')" id="btn-filter-client-pending" class="px-3 py-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium rounded-xl transition-all">
+                ⏳ Pendentes
+              </button>
+              <button onclick="app.filterClientOrders('pago')" id="btn-filter-client-paid" class="px-3 py-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium rounded-xl transition-all">
+                ✅ Pagos
+              </button>
+            </div>
           </div>
 
           <div id="client-orders-container" class="space-y-3">

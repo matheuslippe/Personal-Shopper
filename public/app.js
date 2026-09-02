@@ -1648,11 +1648,14 @@ const app = {
   // ================= VIEW 5: PORTAL DO CLIENTE =================
   clientOrders: [],
   clientAssessor: null,
+  clientFilter: 'todos',
 
   async loadClientOrders() {
     try {
       this.clientOrders = await this.apiGet('/api/client/orders');
-      this.renderClientOrders(this.clientOrders);
+      this.renderClientDashboardMetrics(this.clientOrders);
+      this.renderClientItemsChart(this.clientOrders);
+      this.renderFilteredClientOrders();
       await this.loadClientAssessorInfo();
       lucide.createIcons();
     } catch (err) {
@@ -1660,11 +1663,143 @@ const app = {
     }
   },
 
+  renderClientDashboardMetrics(orders) {
+    let totalPieces = 0;
+    let activeOrders = 0;
+    let pendingComm = 0;
+    let paidComm = 0;
+
+    (orders || []).forEach(o => {
+      totalPieces += (o.quantity || 1);
+      if (o.status === 'pendente' || o.status === 'atrasado') {
+        activeOrders += 1;
+        pendingComm += (o.commission_total || 0);
+      } else if (o.status === 'pago') {
+        paidComm += (o.commission_total || 0);
+      }
+    });
+
+    const pPieces = document.getElementById('client-stat-pieces');
+    const pActive = document.getElementById('client-stat-active');
+    const pPending = document.getElementById('client-stat-pending');
+    const pPaid = document.getElementById('client-stat-paid');
+
+    if (pPieces) pPieces.textContent = `${totalPieces} peças`;
+    if (pActive) pActive.textContent = `${activeOrders} pedidos`;
+    if (pPending) pPending.textContent = this.formatCurrency(pendingComm);
+    if (pPaid) pPaid.textContent = this.formatCurrency(paidComm);
+  },
+
+  renderClientItemsChart(orders) {
+    const canvas = document.getElementById('chart-client-items');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (this.charts.clientItems) {
+      this.charts.clientItems.destroy();
+    }
+
+    const typeCounts = { tenis: 0, roupa: 0, blusa: 0, outro: 0 };
+    (orders || []).forEach(o => {
+      const t = o.item_type || 'outro';
+      const count = o.quantity || 1;
+      if (typeCounts[t] !== undefined) typeCounts[t] += count;
+      else typeCounts.outro += count;
+    });
+
+    const total = Object.values(typeCounts).reduce((a, b) => a + b, 0);
+
+    if (total === 0) {
+      this.charts.clientItems = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Sem peças registradas'],
+          datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+      return;
+    }
+
+    this.charts.clientItems = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['👟 Tênis', '👕 Roupas', '🧥 Blusas', '📦 Outros'],
+        datasets: [{
+          data: [typeCounts.tenis, typeCounts.roupa, typeCounts.blusa, typeCounts.outro],
+          backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 10, font: { size: 11 } }
+          }
+        }
+      }
+    });
+  },
+
+  filterClientOrders(status) {
+    this.clientFilter = status;
+
+    // Update button styles
+    const btnAll = document.getElementById('btn-filter-client-all');
+    const btnPending = document.getElementById('btn-filter-client-pending');
+    const btnPaid = document.getElementById('btn-filter-client-paid');
+
+    const activeClasses = ['bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'font-bold'];
+    const inactiveClasses = ['bg-white', 'hover:bg-slate-50', 'text-slate-600', 'border-slate-200', 'font-medium'];
+
+    [btnAll, btnPending, btnPaid].forEach(btn => {
+      if (btn) {
+        btn.classList.remove(...activeClasses);
+        btn.classList.add(...inactiveClasses);
+      }
+    });
+
+    if (status === 'todos' && btnAll) {
+      btnAll.classList.add(...activeClasses);
+      btnAll.classList.remove(...inactiveClasses);
+    } else if (status === 'pendente' && btnPending) {
+      btnPending.classList.add(...activeClasses);
+      btnPending.classList.remove(...inactiveClasses);
+    } else if (status === 'pago' && btnPaid) {
+      btnPaid.classList.add(...activeClasses);
+      btnPaid.classList.remove(...inactiveClasses);
+    }
+
+    this.renderFilteredClientOrders();
+  },
+
+  renderFilteredClientOrders() {
+    let filtered = this.clientOrders || [];
+    if (this.clientFilter === 'pendente') {
+      filtered = filtered.filter(o => o.status === 'pendente' || o.status === 'atrasado');
+    } else if (this.clientFilter === 'pago') {
+      filtered = filtered.filter(o => o.status === 'pago');
+    }
+    this.renderClientOrders(filtered);
+  },
+
   async loadClientAssessorInfo() {
     try {
       const data = await this.apiGet('/api/client/assessor-info');
       if (data && data.assessor) {
         this.clientAssessor = data.assessor;
+        const nameEl = document.getElementById('client-dash-assessor-name');
+        const pixEl = document.getElementById('client-dash-pix-key');
+        if (nameEl) nameEl.textContent = data.assessor.username || 'Assessor Responsável';
+        if (pixEl) pixEl.textContent = data.assessor.pix_key ? `${data.assessor.pix_key.slice(0, 15)}...` : 'Não configurada';
       }
     } catch (e) {}
   },
@@ -1674,7 +1809,7 @@ const app = {
     const emptyState = document.getElementById('client-orders-empty-state');
     const badge = document.getElementById('client-orders-count-badge');
 
-    badge.textContent = `${(orders || []).length} pedidos`;
+    if (badge) badge.textContent = `${(orders || []).length} pedidos`;
 
     if (!orders || orders.length === 0) {
       container.innerHTML = '';
