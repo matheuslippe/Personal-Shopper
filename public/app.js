@@ -2623,6 +2623,7 @@ const app = {
 
   async openClientDeliveryProfileModal() {
     const modal = document.getElementById('modal-client-delivery-profile');
+    if (!modal) return;
     try {
       const res = await this.apiGet('/api/client/delivery-profile');
       this.fillDeliveryFormData(res.delivery_method || 'correios', res.delivery_data || {}, 'prof');
@@ -2646,15 +2647,29 @@ const app = {
     }
   },
 
-  openDeliveryDetailsModal(orderId) {
-    const order = (this.orders || []).find(o => o.id === orderId) 
-      || (this.clientOrders || []).find(o => o.id === orderId)
-      || (this.scheduleData?.pending_acceptance || []).find(o => o.id === orderId)
-      || (Object.values(this.scheduleData?.scheduled_by_date || {}).flatMap(d => d.orders).find(o => o.id === orderId));
+  async openDeliveryDetailsModal(orderId) {
+    const id = parseInt(orderId, 10);
+    let order = (this.orders || []).find(o => o.id === id) 
+      || (this.clientOrders || []).find(o => o.id === id)
+      || (this.scheduleData?.pending_acceptance || []).find(o => o.id === id)
+      || (Object.values(this.scheduleData?.scheduled_by_date || {}).flatMap(d => d.orders).find(o => o.id === id));
 
-    if (!order) return;
+    if (!order) {
+      try {
+        order = await this.apiGet(`/api/orders/${id}`);
+      } catch (e) {
+        const clientOrders = await this.apiGet('/api/client/orders').catch(() => []);
+        order = clientOrders.find(o => o.id === id);
+      }
+    }
+
+    if (!order) {
+      this.showToast('Dados de entrega indisponíveis para este pedido.', 'error');
+      return;
+    }
 
     const modal = document.getElementById('modal-view-delivery-details');
+    if (!modal) return;
     const content = document.getElementById('delivery-modal-content');
     const method = order.delivery_method || 'correios';
     const data = order.delivery_data || {};
