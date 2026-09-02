@@ -1984,48 +1984,82 @@ const app = {
 
   async openClientPixModal(orderId) {
     const modal = document.getElementById('modal-client-pix');
+    const selectWrap = document.getElementById('client-pix-order-select-wrap');
+    const orderSelect = document.getElementById('client-pix-order-select');
+
+    // Ensure client orders are loaded
+    if (!this.clientOrders || this.clientOrders.length === 0) {
+      try {
+        this.clientOrders = await this.apiGet('/api/client/orders');
+      } catch (e) {
+        this.clientOrders = [];
+      }
+    }
+
+    const pendingOrders = (this.clientOrders || []).filter(o => o.status === 'pendente' || o.status === 'atrasado');
+
+    // If general button clicked and no pending orders exist
+    if (!orderId && pendingOrders.length === 0) {
+      this.showToast('Você não possui nenhum pedido pendente de pagamento no momento! 🎉', 'info');
+      return;
+    }
+
+    // Determine targeted order
+    let targetOrder = null;
+    if (orderId) {
+      targetOrder = (this.clientOrders || []).find(o => o.id === orderId);
+    } else if (pendingOrders.length > 0) {
+      targetOrder = pendingOrders[0];
+    }
+
+    if (!targetOrder) {
+      this.showToast('Nenhum pedido pendente encontrado.', 'error');
+      return;
+    }
+
+    // If multiple pending orders exist, offer quick selector
+    if (pendingOrders.length > 1 && selectWrap && orderSelect) {
+      selectWrap.classList.remove('hidden');
+      orderSelect.innerHTML = pendingOrders.map(o => `
+        <option value="${o.id}" ${o.id === targetOrder.id ? 'selected' : ''}>
+          ${o.tracking_code || 'TRK-' + o.id} — ${this.escapeHtml(o.items_desc)} (${this.formatCurrency(o.commission_total)}) • Assessor: ${this.escapeHtml(o.assessor_name || 'Assessor')}
+        </option>
+      `).join('');
+    } else if (selectWrap) {
+      selectWrap.classList.add('hidden');
+    }
+
+    this.renderPixModalForOrder(targetOrder);
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  onClientPixOrderSelectChange(orderIdVal) {
+    const orderId = parseInt(orderIdVal, 10);
+    const order = (this.clientOrders || []).find(o => o.id === orderId);
+    if (order) {
+      this.renderPixModalForOrder(order);
+    }
+  },
+
+  renderPixModalForOrder(order) {
     const orderBanner = document.getElementById('client-pix-order-banner');
     const orderAmount = document.getElementById('client-pix-order-amount');
     const orderDesc = document.getElementById('client-pix-order-desc');
 
-    let assessor = this.clientAssessor || { username: 'Assessor Principal', pix_key: '', pix_name: '', pix_type: 'Chave Pix' };
-
-    if (orderId) {
-      const order = (this.clientOrders || []).find(o => o.id === orderId);
-      if (order) {
-        if (orderBanner) {
-          orderBanner.classList.remove('hidden');
-          orderAmount.textContent = this.formatCurrency(order.commission_total);
-          orderDesc.textContent = `Pedido: ${order.items_desc} (${order.tracking_code || 'TRK-' + order.id})`;
-        }
-        if (order.pix_key || order.assessor_name) {
-          assessor = {
-            username: order.assessor_name || 'Assessor',
-            pix_name: order.pix_name || order.assessor_name || 'Assessor',
-            pix_key: order.pix_key || '',
-            pix_type: order.pix_type || 'Chave Pix'
-          };
-        } else if (order.assessor_id) {
-          try {
-            const data = await this.apiGet(`/api/client/assessor-info?assessor_id=${order.assessor_id}`);
-            if (data && data.assessor) assessor = data.assessor;
-          } catch (e) {}
-        }
-      }
-    } else {
-      if (orderBanner) orderBanner.classList.add('hidden');
-      if (!this.clientAssessor) {
-        await this.loadClientAssessorInfo();
-        if (this.clientAssessor) assessor = this.clientAssessor;
-      }
+    if (orderBanner) {
+      orderBanner.classList.remove('hidden');
+      orderAmount.textContent = this.formatCurrency(order.commission_total);
+      orderDesc.textContent = `Pedido: ${order.items_desc} (${order.tracking_code || 'TRK-' + order.id}) • Assessor: ${order.assessor_name || 'Assessor'}`;
     }
 
-    document.getElementById('client-pix-beneficiary').textContent = assessor.pix_name || assessor.username || 'Assessor Responsável';
-    document.getElementById('client-pix-type').textContent = assessor.pix_type || 'Chave Pix';
-    document.getElementById('client-pix-key-val').textContent = assessor.pix_key || 'Chave Pix ainda não cadastrada pelo assessor';
+    const beneficiary = order.pix_name || order.assessor_name || 'Assessor Responsável';
+    const type = order.pix_type || 'Chave Pix';
+    const key = order.pix_key || 'Chave Pix ainda não cadastrada pelo assessor';
 
-    modal.classList.remove('hidden');
-    lucide.createIcons();
+    document.getElementById('client-pix-beneficiary').textContent = beneficiary;
+    document.getElementById('client-pix-type').textContent = type;
+    document.getElementById('client-pix-key-val').textContent = key;
   },
 
   copyClientPixKey() {
