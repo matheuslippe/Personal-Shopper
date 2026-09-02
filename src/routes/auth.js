@@ -9,9 +9,12 @@ async function handleAuthRoutes(pathname, req, res, session) {
 
   // 1. Register: POST /api/auth/register
   if (pathname === '/api/auth/register' && req.method === 'POST') {
-    const rateCheck = checkRateLimit(`register_${clientIp}`, 5, 5 * 60 * 1000);
-    if (!rateCheck.allowed) {
-      return sendError(res, 429, `Muitas tentativas de cadastro. Tente novamente em ${rateCheck.retryAfterSeconds} segundos.`);
+    const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.includes('127.0.0.1');
+    if (!isLocal && process.env.NODE_ENV === 'production') {
+      const rateCheck = checkRateLimit(`register_${clientIp}`, 20, 5 * 60 * 1000);
+      if (!rateCheck.allowed) {
+        return sendError(res, 429, `Muitas tentativas de cadastro. Tente novamente em ${rateCheck.retryAfterSeconds} segundos.`);
+      }
     }
 
     const body = await parseJsonBody(req);
@@ -26,8 +29,8 @@ async function handleAuthRoutes(pathname, req, res, session) {
       return sendError(res, 400, 'O nome de usuário deve ter no mínimo 3 caracteres.');
     }
 
-    if (password.length < 8) {
-      return sendError(res, 400, 'A senha deve ter no mínimo 8 caracteres para sua segurança.');
+    if (password.length < 6) {
+      return sendError(res, 400, 'A senha deve ter no mínimo 6 caracteres.');
     }
 
     if (confirmPassword !== undefined && password !== confirmPassword) {
@@ -36,11 +39,15 @@ async function handleAuthRoutes(pathname, req, res, session) {
 
     const existingUser = await queryGet("SELECT id FROM users WHERE LOWER(username) = LOWER(?)", [cleanUsername]);
     if (existingUser) {
-      return sendError(res, 400, 'Este nome de usuário já está cadastrado.');
+      return sendError(res, 400, 'Este nome de usuário já está cadastrado. Escolha outro nome.');
     }
 
     const userRole = (role === 'cliente') ? 'cliente' : 'assessor';
-    const assessorIdVal = assessor_id ? parseInt(assessor_id, 10) : null;
+    let assessorIdVal = assessor_id ? parseInt(assessor_id, 10) : null;
+    if (userRole === 'cliente' && !assessorIdVal) {
+      const firstAssessor = await queryGet("SELECT id FROM users WHERE role = 'assessor' ORDER BY id ASC LIMIT 1");
+      assessorIdVal = firstAssessor ? firstAssessor.id : 1;
+    }
 
     const { hash, salt } = hashPassword(password);
     const now = new Date().toISOString();
