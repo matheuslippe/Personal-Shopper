@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const fs = require('fs');
 const { createClient } = require('@libsql/client');
 const logger = require('../utils/logger');
@@ -67,11 +67,22 @@ function formatOrderRow(order) {
       commission_total: Number(order.commission_total) || 0
     }];
   }
+  let deliveryData = {};
+  try {
+    if (order.delivery_json && typeof order.delivery_json === 'string' && order.delivery_json.trim()) {
+      deliveryData = JSON.parse(order.delivery_json);
+    } else if (typeof order.delivery_json === 'object' && order.delivery_json !== null) {
+      deliveryData = order.delivery_json;
+    }
+  } catch (e) {}
+
   return {
     ...order,
     quantity: Number(order.quantity) || 1,
     commission_unit: Number(order.commission_unit) || 0,
     commission_total: Number(order.commission_total) || 0,
+    delivery_method: order.delivery_method || 'correios',
+    delivery_data: deliveryData,
     items
   };
 }

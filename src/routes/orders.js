@@ -124,10 +124,12 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
       const sDate = body.scheduled_date || order_date || null;
       const sPeriod = body.scheduled_period || 'Manhã (06h às 14h)';
       const aStatus = body.acceptance_status || 'agendado';
+      const delMethod = body.delivery_method || 'correios';
+      const delJson = typeof body.delivery_data === 'object' ? JSON.stringify(body.delivery_data) : (body.delivery_json || '{}');
 
       await queryRun(`
         UPDATE orders 
-        SET client_user_id = ?, client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, scheduled_date = ?, scheduled_period = ?, acceptance_status = ?, updated_at = ?
+        SET client_user_id = ?, client_name = ?, supplier = ?, items_desc = ?, item_type = ?, quantity = ?, commission_unit = ?, commission_total = ?, order_date = ?, payment_date = ?, status = ?, notes = ?, items_json = ?, scheduled_date = ?, scheduled_period = ?, acceptance_status = ?, delivery_method = ?, delivery_json = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
       `, [
         client_user_id,
@@ -146,6 +148,8 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
         sDate,
         sPeriod,
         aStatus,
+        delMethod,
+        delJson,
         now,
         id,
         userId
@@ -247,10 +251,12 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
     const sDate = body.scheduled_date || order_date || null;
     const sPeriod = body.scheduled_period || 'Manhã (06h às 14h)';
     const aStatus = body.acceptance_status || 'agendado';
+    const delMethod = body.delivery_method || 'correios';
+    const delJson = typeof body.delivery_data === 'object' ? JSON.stringify(body.delivery_data) : (body.delivery_json || '{}');
 
     const result = await queryRun(`
-      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, scheduled_date, scheduled_period, acceptance_status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, scheduled_date, scheduled_period, acceptance_status, delivery_method, delivery_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       userId,
       client_user_id,
@@ -270,6 +276,8 @@ async function handleOrderRoutes(pathname, req, res, session, searchParams) {
       sDate,
       sPeriod,
       aStatus,
+      delMethod,
+      delJson,
       now,
       now
     ]);

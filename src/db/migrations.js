@@ -51,6 +51,8 @@ async function initDatabase() {
       salt TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'assessor', -- 'assessor' ou 'cliente'
       assessor_id INTEGER,
+      default_delivery_method TEXT DEFAULT 'correios',
+      default_delivery_json TEXT DEFAULT '{}',
       created_at TEXT NOT NULL
     )
   `);
@@ -107,6 +109,8 @@ async function initDatabase() {
       scheduled_date TEXT, -- YYYY-MM-DD
       scheduled_period TEXT DEFAULT 'Manhã (06h às 14h)',
       acceptance_status TEXT DEFAULT 'agendado', -- 'aguardando_aceite', 'agendado', 'recusado'
+      delivery_method TEXT DEFAULT 'correios', -- 'correios', 'excursao', 'transportadora', 'uber'
+      delivery_json TEXT DEFAULT '{}',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -129,6 +133,8 @@ async function initDatabase() {
   // Run migrations for existing databases
   try { await db.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'assessor'"); } catch (e) {}
   try { await db.execute("ALTER TABLE users ADD COLUMN assessor_id INTEGER"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN default_delivery_method TEXT DEFAULT 'correios'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE users ADD COLUMN default_delivery_json TEXT DEFAULT '{}'"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN client_user_id INTEGER"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN items_json TEXT DEFAULT '[]'"); } catch (e) {}
@@ -136,6 +142,8 @@ async function initDatabase() {
   try { await db.execute("ALTER TABLE orders ADD COLUMN scheduled_date TEXT"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN scheduled_period TEXT DEFAULT 'Manhã (06h às 14h)'"); } catch (e) {}
   try { await db.execute("ALTER TABLE orders ADD COLUMN acceptance_status TEXT DEFAULT 'agendado'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN delivery_method TEXT DEFAULT 'correios'"); } catch (e) {}
+  try { await db.execute("ALTER TABLE orders ADD COLUMN delivery_json TEXT DEFAULT '{}'"); } catch (e) {}
   try { await db.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
   try { await db.execute("ALTER TABLE settings ADD COLUMN user_id INTEGER DEFAULT 1"); } catch (e) {}
 

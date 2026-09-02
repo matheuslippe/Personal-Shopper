@@ -331,4 +331,147 @@ describe('Assessoria Express — Suíte de Testes Automatizados', () => {
     assert.equal(reqData.order.acceptance_status, 'agendado');
     assert.ok(reqData.order.scheduled_date, 'Deve ter scheduled_date gerada automaticamente');
   });
+
+  test('14. Perfil de Entrega Padrão do Cliente (Correios)', async () => {
+    const clientUserE = `client_e_${stamp}`;
+    const regRes = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: clientUserE, password: 'password123', role: 'cliente' })
+    });
+    const tokenE = (await regRes.json()).token;
+
+    // Save default delivery profile
+    const saveRes = await fetch(`${BASE_URL}/api/client/delivery-profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenE}` },
+      body: JSON.stringify({
+        delivery_method: 'correios',
+        delivery_data: {
+          recipient_name: 'Maria Oliveira',
+          cpf: '123.456.789-00',
+          address: 'Rua das Flores, 123, Centro, Campinas - SP, CEP: 13000-000',
+          phone: '(19) 98888-7777'
+        }
+      })
+    });
+    assert.equal(saveRes.status, 200);
+
+    // Fetch saved profile
+    const getRes = await fetch(`${BASE_URL}/api/client/delivery-profile`, {
+      headers: { 'Authorization': `Bearer ${tokenE}` }
+    });
+    assert.equal(getRes.status, 200);
+    const data = await getRes.json();
+    assert.equal(data.delivery_method, 'correios');
+    assert.equal(data.delivery_data.recipient_name, 'Maria Oliveira');
+    assert.equal(data.delivery_data.cpf, '123.456.789-00');
+  });
+
+  test('15. Pedido com Entrega via Excursão (Ônibus)', async () => {
+    const clientUserF = `client_f_${stamp}`;
+    const meResA = await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${userTokenA}` } });
+    const assessorAId = (await meResA.json()).user.id;
+
+    const regRes = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: clientUserF, password: 'password123', role: 'cliente', assessor_id: assessorAId })
+    });
+    const tokenF = (await regRes.json()).token;
+
+    const excursionData = {
+      recipient_name: 'Carlos Lojista',
+      phone: '(16) 99999-1234',
+      city: 'Ribeirão Preto - SP',
+      excursion_name: 'Excursão TurisBras',
+      excursion_location: 'Estacionamento Pátio Pari - Vaga 12',
+      excursion_time: 'Até as 12h00',
+      bus_plate: 'ABC-1D23',
+      requires_invoice: 'Sim'
+    };
+
+    const reqRes = await fetch(`${BASE_URL}/api/client/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenF}` },
+      body: JSON.stringify({
+        supplier: 'Shopping All Brás',
+        assessor_id: assessorAId,
+        items: [{ item_type: 'roupa', items_desc: 'Conjunto Moletom', quantity: 3 }],
+        delivery_method: 'excursao',
+        delivery_data: excursionData
+      })
+    });
+    assert.equal(reqRes.status, 201);
+    const reqData = await reqRes.json();
+    assert.equal(reqData.order.delivery_method, 'excursao');
+    assert.equal(reqData.order.delivery_data.bus_plate, 'ABC-1D23');
+    assert.equal(reqData.order.delivery_data.excursion_name, 'Excursão TurisBras');
+
+    // Verify public tracking
+    const trackRes = await fetch(`${BASE_URL}/api/tracking/${reqData.order.tracking_code}`);
+    assert.equal(trackRes.status, 200);
+    const trackData = await trackRes.json();
+    assert.equal(trackData.order.delivery_method, 'excursao');
+    assert.equal(trackData.order.delivery_data.city, 'Ribeirão Preto - SP');
+  });
+
+  test('16. Pedidos com Entrega via Transportadora e Uber', async () => {
+    const clientUserG = `client_g_${stamp}`;
+    const meResA = await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${userTokenA}` } });
+    const assessorAId = (await meResA.json()).user.id;
+
+    const regRes = await fetch(`${BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: clientUserG, password: 'password123', role: 'cliente', assessor_id: assessorAId })
+    });
+    const tokenG = (await regRes.json()).token;
+
+    // Transportadora
+    const transRes = await fetch(`${BASE_URL}/api/client/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenG}` },
+      body: JSON.stringify({
+        supplier: 'Mega Polo',
+        assessor_id: assessorAId,
+        items: [{ item_type: 'blusa', items_desc: 'Jaqueta Couro', quantity: 2 }],
+        delivery_method: 'transportadora',
+        delivery_data: {
+          transporter_name: 'Braspress Transportes',
+          transporter_address: 'Rua Silva Teles, 200 - Pari',
+          recipient_name: 'Fernanda Lima',
+          cpf: '987.654.321-99',
+          phone: '(11) 97777-6666',
+          address: 'Av. Paulista, 1000, Apto 51, SP - CEP: 01310-100',
+          requires_invoice: 'Sim'
+        }
+      })
+    });
+    assert.equal(transRes.status, 201);
+    const transData = await transRes.json();
+    assert.equal(transData.order.delivery_method, 'transportadora');
+    assert.equal(transData.order.delivery_data.transporter_name, 'Braspress Transportes');
+
+    // Uber
+    const uberRes = await fetch(`${BASE_URL}/api/client/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenG}` },
+      body: JSON.stringify({
+        supplier: 'Vautier Premium',
+        assessor_id: assessorAId,
+        items: [{ item_type: 'outro', items_desc: 'Bolsa de Viagem', quantity: 1 }],
+        delivery_method: 'uber',
+        delivery_data: {
+          address: 'Rua Augusta, 500, Consolação, São Paulo - SP',
+          recipient_name: 'Lucas Pereira',
+          phone: '(11) 96666-5555'
+        }
+      })
+    });
+    assert.equal(uberRes.status, 201);
+    const uberData = await uberRes.json();
+    assert.equal(uberData.order.delivery_method, 'uber');
+    assert.equal(uberData.order.delivery_data.recipient_name, 'Lucas Pereira');
+  });
 });

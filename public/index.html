@@ -975,6 +975,10 @@
                 <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-600"></i>
                 <span>+ Solicitar Nova Compra</span>
               </button>
+              <button onclick="app.openClientDeliveryProfileModal()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-bold text-xs rounded-xl border border-emerald-400/30 transition-all">
+                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-300"></i>
+                <span>Meu Endereço Padrão</span>
+              </button>
               <button onclick="app.openClientPixModal()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-800/60 hover:bg-emerald-800/80 text-white font-bold text-xs rounded-xl border border-emerald-400/30 transition-all">
                 <i data-lucide="qr-code" class="w-4 h-4 text-emerald-300"></i>
                 <span>Pagar Comissão via Pix</span>
@@ -1526,9 +1530,176 @@
           </div>
         </div>
 
+        <!-- Delivery Section -->
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-slate-800">🚚 Modelo de Entrega / Despacho *</label>
+            <button type="button" class="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer" onclick="app.loadClientDeliveryProfileIntoForm('req')">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>Carregar Endereço Padrão</span>
+            </button>
+          </div>
+
+          <!-- Delivery Method Radio Buttons -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button type="button" onclick="app.selectDeliveryMethod('correios', 'req')" id="btn-del-correios-req" class="delivery-method-btn-req py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-200">
+              <span class="text-base">📦</span>
+              <span>Correios</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('excursao', 'req')" id="btn-del-excursao-req" class="delivery-method-btn-req py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚌</span>
+              <span>Excursão</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('transportadora', 'req')" id="btn-del-transportadora-req" class="delivery-method-btn-req py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚚</span>
+              <span>Transportadora</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('uber', 'req')" id="btn-del-uber-req" class="delivery-method-btn-req py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚗</span>
+              <span>Uber / Local</span>
+            </button>
+          </div>
+          <input type="hidden" id="client-req-del-method" value="correios">
+
+          <!-- Subform Correios -->
+          <div id="del-subform-correios-req" class="del-subform-req space-y-2 pt-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome Completo do Destinatário *</label>
+                <input type="text" id="del-corr-name-req" placeholder="Nome completo" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">CPF *</label>
+                <input type="text" id="del-corr-cpf-req" placeholder="000.000.000-00" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="sm:col-span-2">
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo (com CEP) *</label>
+                <input type="text" id="del-corr-address-req" placeholder="Rua..., Nº, Bairro, Cidade - UF, CEP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+                <input type="text" id="del-corr-phone-req" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+          </div>
+
+          <!-- Subform Excursao -->
+          <div id="del-subform-excursao-req" class="del-subform-req hidden space-y-2 pt-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome Completo *</label>
+                <input type="text" id="del-exc-name-req" placeholder="Nome completo" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+                <input type="text" id="del-exc-phone-req" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Cidade de Destino *</label>
+                <input type="text" id="del-exc-city-req" placeholder="Ex: Ribeirão Preto - SP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome da Excursão *</label>
+                <input type="text" id="del-exc-tour-req" placeholder="Ex: Excursão do Paulinho" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Localização do Ônibus *</label>
+                <input type="text" id="del-exc-location-req" placeholder="Ex: Pátio Pari / Vautier" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Horário de Recebimento *</label>
+                <input type="text" id="del-exc-time-req" placeholder="Ex: Até 11h30" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Placa do Ônibus *</label>
+                <input type="text" id="del-exc-plate-req" placeholder="Ex: ABC-1234" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Necessidade de Nota Fiscal? *</label>
+              <select id="del-exc-nf-req" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+                <option value="Nao">Não (Declaração de Conteúdo / Isento)</option>
+                <option value="Sim">Sim (Exige Nota Fiscal)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Subform Transportadora -->
+          <div id="del-subform-transportadora-req" class="del-subform-req hidden space-y-2 pt-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome da Transportadora *</label>
+                <input type="text" id="del-trans-name-req" placeholder="Ex: Braspress, Rodonaves..." class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço da Transportadora no Polo *</label>
+                <input type="text" id="del-trans-hub-req" placeholder="Ex: Rua Silva Teles, 100 - Pari" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome do Destinatário *</label>
+                <input type="text" id="del-trans-recip-req" placeholder="Nome completo" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">CPF *</label>
+                <input type="text" id="del-trans-cpf-req" placeholder="000.000.000-00" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+                <input type="text" id="del-trans-phone-req" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="sm:col-span-2">
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo de Destino (com CEP) *</label>
+                <input type="text" id="del-trans-address-req" placeholder="Rua..., Nº, Bairro, Cidade - UF, CEP" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Necessidade de Nota Fiscal? *</label>
+                <select id="del-trans-nf-req" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+                  <option value="Sim">Sim (Exige Nota Fiscal)</option>
+                  <option value="Nao">Não</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subform Uber -->
+          <div id="del-subform-uber-req" class="del-subform-req hidden space-y-2 pt-1">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo para Entrega Local / Uber Flash *</label>
+              <input type="text" id="del-uber-address-req" placeholder="Rua..., Nº, Bairro, Ponto de referência, Cidade" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome do Destinatário *</label>
+                <input type="text" id="del-uber-name-req" placeholder="Quem irá receber" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone de Contato *</label>
+                <input type="text" id="del-uber-phone-req" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium">
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2 flex items-center gap-2 border-t border-slate-200/80">
+            <input type="checkbox" id="client-req-save-default" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+            <label for="client-req-save-default" class="text-xs font-semibold text-slate-700 cursor-pointer">
+              Salvar como meu endereço e modelo de entrega padrão
+            </label>
+          </div>
+        </div>
+
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Observações / Links / Tamanhos / Cores</label>
-          <textarea id="client-req-notes" rows="3"
+          <textarea id="client-req-notes" rows="2"
             class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:bg-white"
             placeholder="Ex: Tênis tamanho 41, Camisa preta tamanho M..."></textarea>
         </div>
@@ -1733,8 +1904,223 @@
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Confirmar Agendamento</span>
           </button>
+  <!-- MODAL: PERFIL DE ENTREGA PADRÃO DO CLIENTE -->
+  <div id="modal-client-delivery-profile" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto flex flex-col">
+      <div class="px-6 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Meu Endereço e Entrega Padrão</h3>
+            <p class="text-[10px] text-slate-500">Configure seu modelo de recebimento preferido para agilizar novas compras</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-client-delivery-profile')" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="app.saveClientDeliveryProfile(event)" class="p-6 space-y-4">
+        <!-- Delivery Method Selector -->
+        <div>
+          <label class="block text-xs font-bold text-slate-800 mb-2">Modalidade Padrão Preferida:</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button type="button" onclick="app.selectDeliveryMethod('correios', 'prof')" id="btn-del-correios-prof" class="delivery-method-btn-prof py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-200">
+              <span class="text-base">📦</span>
+              <span>Correios</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('excursao', 'prof')" id="btn-del-excursao-prof" class="delivery-method-btn-prof py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚌</span>
+              <span>Excursão</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('transportadora', 'prof')" id="btn-del-transportadora-prof" class="delivery-method-btn-prof py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚚</span>
+              <span>Transportadora</span>
+            </button>
+            <button type="button" onclick="app.selectDeliveryMethod('uber', 'prof')" id="btn-del-uber-prof" class="delivery-method-btn-prof py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700">
+              <span class="text-base">🚗</span>
+              <span>Uber / Local</span>
+            </button>
+          </div>
+          <input type="hidden" id="prof-del-method" value="correios">
+        </div>
+
+        <!-- Subform Correios -->
+        <div id="del-subform-correios-prof" class="del-subform-prof space-y-2 pt-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome Completo do Destinatário *</label>
+              <input type="text" id="del-corr-name-prof" placeholder="Nome completo" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">CPF *</label>
+              <input type="text" id="del-corr-cpf-prof" placeholder="000.000.000-00" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="sm:col-span-2">
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo (com CEP) *</label>
+              <input type="text" id="del-corr-address-prof" placeholder="Rua..., Nº, Bairro, Cidade - UF, CEP" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+              <input type="text" id="del-corr-phone-prof" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+        </div>
+
+        <!-- Subform Excursao -->
+        <div id="del-subform-excursao-prof" class="del-subform-prof hidden space-y-2 pt-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome Completo *</label>
+              <input type="text" id="del-exc-name-prof" placeholder="Nome completo" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+              <input type="text" id="del-exc-phone-prof" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Cidade de Destino *</label>
+              <input type="text" id="del-exc-city-prof" placeholder="Ex: Ribeirão Preto - SP" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome da Excursão *</label>
+              <input type="text" id="del-exc-tour-prof" placeholder="Ex: Excursão do Paulinho" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Localização do Ônibus *</label>
+              <input type="text" id="del-exc-location-prof" placeholder="Ex: Pátio Pari / Vautier" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Horário de Recebimento *</label>
+              <input type="text" id="del-exc-time-prof" placeholder="Ex: Até 11h30" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Placa do Ônibus *</label>
+              <input type="text" id="del-exc-plate-prof" placeholder="Ex: ABC-1234" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Necessidade de Nota Fiscal? *</label>
+            <select id="del-exc-nf-prof" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+              <option value="Nao">Não (Declaração de Conteúdo / Isento)</option>
+              <option value="Sim">Sim (Exige Nota Fiscal)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Subform Transportadora -->
+        <div id="del-subform-transportadora-prof" class="del-subform-prof hidden space-y-2 pt-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome da Transportadora *</label>
+              <input type="text" id="del-trans-name-prof" placeholder="Ex: Braspress, Rodonaves..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço da Transportadora no Polo *</label>
+              <input type="text" id="del-trans-hub-prof" placeholder="Ex: Rua Silva Teles, 100 - Pari" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome do Destinatário *</label>
+              <input type="text" id="del-trans-recip-prof" placeholder="Nome completo" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">CPF *</label>
+              <input type="text" id="del-trans-cpf-prof" placeholder="000.000.000-00" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone / WhatsApp *</label>
+              <input type="text" id="del-trans-phone-prof" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div class="sm:col-span-2">
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo de Destino (com CEP) *</label>
+              <input type="text" id="del-trans-address-prof" placeholder="Rua..., Nº, Bairro, Cidade - UF, CEP" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Necessidade de Nota Fiscal? *</label>
+              <select id="del-trans-nf-prof" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+                <option value="Sim">Sim (Exige Nota Fiscal)</option>
+                <option value="Nao">Não</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subform Uber -->
+        <div id="del-subform-uber-prof" class="del-subform-prof hidden space-y-2 pt-1">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Endereço Completo para Entrega Local / Uber Flash *</label>
+            <input type="text" id="del-uber-address-prof" placeholder="Rua..., Nº, Bairro, Ponto de referência, Cidade" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome do Destinatário *</label>
+              <input type="text" id="del-uber-name-prof" placeholder="Quem irá receber" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Telefone de Contato *</label>
+              <input type="text" id="del-uber-phone-prof" placeholder="(00) 00000-0000" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          <button type="button" onclick="app.closeModal('modal-client-delivery-profile')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            Fechar
+          </button>
+          <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200 transition-all flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Salvar Endereço Padrão</span>
+          </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VISUALIZAR DADOS DE ENTREGA (ASSESSOR / RASTREIO) -->
+  <div id="modal-view-delivery-details" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden my-auto flex flex-col">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-slate-800 text-emerald-400 flex items-center justify-center">
+            <i data-lucide="truck" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold">Dados de Despacho & Entrega</h3>
+            <p class="text-[10px] text-slate-400">Informações completas para envio das mercadorias</p>
+          </div>
+        </div>
+        <button onclick="app.closeModal('modal-view-delivery-details')" class="p-1.5 text-slate-400 hover:text-white rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <div id="delivery-modal-content" class="space-y-3">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <button type="button" onclick="app.closeModal('modal-view-delivery-details')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+            Fechar
+          </button>
+          <button type="button" onclick="app.copyDeliveryDetailsToClipboard()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            <span>Copiar para WhatsApp</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

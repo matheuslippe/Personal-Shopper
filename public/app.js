@@ -757,6 +757,9 @@ const app = {
           <!-- Action Buttons -->
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <div class="flex items-center justify-end gap-1">
+              <button onclick="app.openDeliveryDetailsModal(${o.id})" class="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-white" title="Ver Dados de Entrega / Despacho">
+                <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+              </button>
               <button onclick="app.copyTrackingLink('${o.tracking_code || ''}')" class="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-white" title="Copiar Link de Rastreio do Cliente">
                 <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
               </button>
@@ -1871,6 +1874,10 @@ const app = {
             </div>
 
             <div class="flex items-center gap-2">
+              <button onclick="app.openDeliveryDetailsModal(${o.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
+                <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+                <span>Dados de Envio</span>
+              </button>
               <button onclick="app.openPublicTrackingModal('${o.tracking_code}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5">
                 <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                 <span>Ver Rastreio</span>
@@ -1901,6 +1908,9 @@ const app = {
 
     // Load available assessors
     await this.loadAvailableAssessors();
+
+    // Pre-fill with client default delivery profile
+    await this.loadClientDeliveryProfileIntoForm('req');
 
     const container = document.getElementById('client-req-items-container');
     container.innerHTML = '';
@@ -1957,6 +1967,9 @@ const app = {
     const notes = document.getElementById('client-req-notes').value.trim();
     const assessorSelect = document.getElementById('client-req-assessor');
     const assessor_id = assessorSelect ? parseInt(assessorSelect.value, 10) : null;
+    const save_as_default = document.getElementById('client-req-save-default')?.checked || false;
+
+    const { delivery_method, delivery_data } = this.getDeliveryFormData('req');
 
     const container = document.getElementById('client-req-items-container');
     const rows = container.querySelectorAll('.client-req-item-row');
@@ -1981,7 +1994,15 @@ const app = {
     }
 
     try {
-      await this.apiPost('/api/client/request', { items, supplier, notes, assessor_id });
+      await this.apiPost('/api/client/request', {
+        items,
+        supplier,
+        notes,
+        assessor_id,
+        delivery_method,
+        delivery_data,
+        save_as_default
+      });
       this.showToast('Solicitação de assessoria enviada com sucesso!', 'success');
       this.closeModal('modal-client-request');
       await this.loadClientOrders();
@@ -2409,6 +2430,10 @@ const app = {
           </div>
 
           <div class="flex items-center justify-end gap-2 pt-1">
+            <button onclick="app.openDeliveryDetailsModal(${o.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs rounded-lg transition-all flex items-center gap-1">
+              <i data-lucide="truck" class="w-3 h-3"></i>
+              <span>Despacho</span>
+            </button>
             <button onclick="app.openOrderModal(${o.id})" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition-all">
               Editar Pedido
             </button>
@@ -2479,6 +2504,240 @@ const app = {
     } catch (err) {
       this.showToast(err.message, 'error');
     }
+  },
+
+  // --- DELIVERY & SHIPPING MODULE ---
+  currentDeliveryTextToCopy: '',
+
+  selectDeliveryMethod(method, scope = 'req') {
+    const validMethods = ['correios', 'excursao', 'transportadora', 'uber'];
+    if (!validMethods.includes(method)) method = 'correios';
+
+    // Update hidden input
+    const inputEl = document.getElementById(scope === 'prof' ? 'prof-del-method' : 'client-req-del-method');
+    if (inputEl) inputEl.value = method;
+
+    // Update buttons style
+    document.querySelectorAll(`.delivery-method-btn-${scope}`).forEach(btn => {
+      btn.className = `delivery-method-btn-${scope} py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-white hover:bg-slate-100 border-slate-200 text-slate-700`;
+    });
+    const activeBtn = document.getElementById(`btn-del-${method}-${scope}`);
+    if (activeBtn) {
+      activeBtn.className = `delivery-method-btn-${scope} py-2 px-3 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 bg-emerald-50 border-emerald-500 text-emerald-800 ring-2 ring-emerald-200`;
+    }
+
+    // Toggle subforms
+    validMethods.forEach(m => {
+      const subform = document.getElementById(`del-subform-${m}-${scope}`);
+      if (subform) {
+        if (m === method) subform.classList.remove('hidden');
+        else subform.classList.add('hidden');
+      }
+    });
+
+    lucide.createIcons();
+  },
+
+  getDeliveryFormData(scope = 'req') {
+    const methodInput = document.getElementById(scope === 'prof' ? 'prof-del-method' : 'client-req-del-method');
+    const method = methodInput ? methodInput.value : 'correios';
+    const data = {};
+
+    if (method === 'correios') {
+      data.recipient_name = (document.getElementById(`del-corr-name-${scope}`)?.value || '').trim();
+      data.cpf = (document.getElementById(`del-corr-cpf-${scope}`)?.value || '').trim();
+      data.address = (document.getElementById(`del-corr-address-${scope}`)?.value || '').trim();
+      data.phone = (document.getElementById(`del-corr-phone-${scope}`)?.value || '').trim();
+    } else if (method === 'excursao') {
+      data.recipient_name = (document.getElementById(`del-exc-name-${scope}`)?.value || '').trim();
+      data.phone = (document.getElementById(`del-exc-phone-${scope}`)?.value || '').trim();
+      data.city = (document.getElementById(`del-exc-city-${scope}`)?.value || '').trim();
+      data.excursion_name = (document.getElementById(`del-exc-tour-${scope}`)?.value || '').trim();
+      data.excursion_location = (document.getElementById(`del-exc-location-${scope}`)?.value || '').trim();
+      data.excursion_time = (document.getElementById(`del-exc-time-${scope}`)?.value || '').trim();
+      data.bus_plate = (document.getElementById(`del-exc-plate-${scope}`)?.value || '').trim();
+      data.requires_invoice = document.getElementById(`del-exc-nf-${scope}`)?.value || 'Nao';
+    } else if (method === 'transportadora') {
+      data.transporter_name = (document.getElementById(`del-trans-name-${scope}`)?.value || '').trim();
+      data.transporter_address = (document.getElementById(`del-trans-hub-${scope}`)?.value || '').trim();
+      data.recipient_name = (document.getElementById(`del-trans-recip-${scope}`)?.value || '').trim();
+      data.cpf = (document.getElementById(`del-trans-cpf-${scope}`)?.value || '').trim();
+      data.phone = (document.getElementById(`del-trans-phone-${scope}`)?.value || '').trim();
+      data.address = (document.getElementById(`del-trans-address-${scope}`)?.value || '').trim();
+      data.requires_invoice = document.getElementById(`del-trans-nf-${scope}`)?.value || 'Sim';
+    } else if (method === 'uber') {
+      data.address = (document.getElementById(`del-uber-address-${scope}`)?.value || '').trim();
+      data.recipient_name = (document.getElementById(`del-uber-name-${scope}`)?.value || '').trim();
+      data.phone = (document.getElementById(`del-uber-phone-${scope}`)?.value || '').trim();
+    }
+
+    return { delivery_method: method, delivery_data: data };
+  },
+
+  fillDeliveryFormData(method, data = {}, scope = 'req') {
+    this.selectDeliveryMethod(method || 'correios', scope);
+    if (!data) return;
+
+    if (method === 'correios') {
+      if (document.getElementById(`del-corr-name-${scope}`)) document.getElementById(`del-corr-name-${scope}`).value = data.recipient_name || '';
+      if (document.getElementById(`del-corr-cpf-${scope}`)) document.getElementById(`del-corr-cpf-${scope}`).value = data.cpf || '';
+      if (document.getElementById(`del-corr-address-${scope}`)) document.getElementById(`del-corr-address-${scope}`).value = data.address || '';
+      if (document.getElementById(`del-corr-phone-${scope}`)) document.getElementById(`del-corr-phone-${scope}`).value = data.phone || '';
+    } else if (method === 'excursao') {
+      if (document.getElementById(`del-exc-name-${scope}`)) document.getElementById(`del-exc-name-${scope}`).value = data.recipient_name || '';
+      if (document.getElementById(`del-exc-phone-${scope}`)) document.getElementById(`del-exc-phone-${scope}`).value = data.phone || '';
+      if (document.getElementById(`del-exc-city-${scope}`)) document.getElementById(`del-exc-city-${scope}`).value = data.city || '';
+      if (document.getElementById(`del-exc-tour-${scope}`)) document.getElementById(`del-exc-tour-${scope}`).value = data.excursion_name || '';
+      if (document.getElementById(`del-exc-location-${scope}`)) document.getElementById(`del-exc-location-${scope}`).value = data.excursion_location || '';
+      if (document.getElementById(`del-exc-time-${scope}`)) document.getElementById(`del-exc-time-${scope}`).value = data.excursion_time || '';
+      if (document.getElementById(`del-exc-plate-${scope}`)) document.getElementById(`del-exc-plate-${scope}`).value = data.bus_plate || '';
+      if (document.getElementById(`del-exc-nf-${scope}`)) document.getElementById(`del-exc-nf-${scope}`).value = data.requires_invoice || 'Nao';
+    } else if (method === 'transportadora') {
+      if (document.getElementById(`del-trans-name-${scope}`)) document.getElementById(`del-trans-name-${scope}`).value = data.transporter_name || '';
+      if (document.getElementById(`del-trans-hub-${scope}`)) document.getElementById(`del-trans-hub-${scope}`).value = data.transporter_address || '';
+      if (document.getElementById(`del-trans-recip-${scope}`)) document.getElementById(`del-trans-recip-${scope}`).value = data.recipient_name || '';
+      if (document.getElementById(`del-trans-cpf-${scope}`)) document.getElementById(`del-trans-cpf-${scope}`).value = data.cpf || '';
+      if (document.getElementById(`del-trans-phone-${scope}`)) document.getElementById(`del-trans-phone-${scope}`).value = data.phone || '';
+      if (document.getElementById(`del-trans-address-${scope}`)) document.getElementById(`del-trans-address-${scope}`).value = data.address || '';
+      if (document.getElementById(`del-trans-nf-${scope}`)) document.getElementById(`del-trans-nf-${scope}`).value = data.requires_invoice || 'Sim';
+    } else if (method === 'uber') {
+      if (document.getElementById(`del-uber-address-${scope}`)) document.getElementById(`del-uber-address-${scope}`).value = data.address || '';
+      if (document.getElementById(`del-uber-name-${scope}`)) document.getElementById(`del-uber-name-${scope}`).value = data.recipient_name || '';
+      if (document.getElementById(`del-uber-phone-${scope}`)) document.getElementById(`del-uber-phone-${scope}`).value = data.phone || '';
+    }
+  },
+
+  async loadClientDeliveryProfileIntoForm(scope = 'req') {
+    try {
+      const res = await this.apiGet('/api/client/delivery-profile');
+      if (res && res.delivery_method) {
+        this.fillDeliveryFormData(res.delivery_method, res.delivery_data, scope);
+        if (scope === 'req') {
+          this.showToast('Dados de entrega padrão carregados!', 'info');
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao carregar perfil de entrega:', e);
+    }
+  },
+
+  async openClientDeliveryProfileModal() {
+    const modal = document.getElementById('modal-client-delivery-profile');
+    try {
+      const res = await this.apiGet('/api/client/delivery-profile');
+      this.fillDeliveryFormData(res.delivery_method || 'correios', res.delivery_data || {}, 'prof');
+    } catch (e) {
+      this.selectDeliveryMethod('correios', 'prof');
+    }
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  async saveClientDeliveryProfile(e) {
+    e.preventDefault();
+    const { delivery_method, delivery_data } = this.getDeliveryFormData('prof');
+
+    try {
+      await this.apiPost('/api/client/delivery-profile', { delivery_method, delivery_data });
+      this.showToast('Perfil de entrega padrão salvo com sucesso!', 'success');
+      this.closeModal('modal-client-delivery-profile');
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  openDeliveryDetailsModal(orderId) {
+    const order = (this.orders || []).find(o => o.id === orderId) 
+      || (this.clientOrders || []).find(o => o.id === orderId)
+      || (this.scheduleData?.pending_acceptance || []).find(o => o.id === orderId)
+      || (Object.values(this.scheduleData?.scheduled_by_date || {}).flatMap(d => d.orders).find(o => o.id === orderId));
+
+    if (!order) return;
+
+    const modal = document.getElementById('modal-view-delivery-details');
+    const content = document.getElementById('delivery-modal-content');
+    const method = order.delivery_method || 'correios';
+    const data = order.delivery_data || {};
+
+    let methodTitle = '📦 Correios (PAC / Sedex)';
+    let badgeClass = 'bg-blue-100 text-blue-800';
+    let formattedText = `*DADOS DE DESPACHO / ENTREGA*\nCliente: ${order.client_name}\nPedido: ${order.tracking_code || 'TRK-' + order.id}\nPeças: ${order.items_desc}\n\n`;
+
+    if (method === 'excursao') {
+      methodTitle = '🚌 Excursão (Ônibus de Compras)';
+      badgeClass = 'bg-amber-100 text-amber-800';
+      formattedText += `*MODALIDADE: EXCURSÃO*\nNome: ${data.recipient_name || order.client_name}\nTelefone: ${data.phone || '-'}\nCidade: ${data.city || '-'}\nExcursão: ${data.excursion_name || '-'}\nLocal do Ônibus: ${data.excursion_location || '-'}\nHorário Limite: ${data.excursion_time || '-'}\nPlaca: ${data.bus_plate || '-'}\nNota Fiscal: ${data.requires_invoice === 'Sim' ? 'Sim (Exige NF)' : 'Não'}`;
+    } else if (method === 'transportadora') {
+      methodTitle = '🚚 Transportadora';
+      badgeClass = 'bg-purple-100 text-purple-800';
+      formattedText += `*MODALIDADE: TRANSPORTADORA*\nTransportadora: ${data.transporter_name || '-'}\nPonto no Polo: ${data.transporter_address || '-'}\nNota Fiscal: ${data.requires_invoice === 'Sim' ? 'Sim' : 'Não'}\nDestinatário: ${data.recipient_name || order.client_name}\nCPF: ${data.cpf || '-'}\nTelefone: ${data.phone || '-'}\nEndereço Destino: ${data.address || '-'}`;
+    } else if (method === 'uber') {
+      methodTitle = '🚗 Uber / Entrega Local (Flash)';
+      badgeClass = 'bg-emerald-100 text-emerald-800';
+      formattedText += `*MODALIDADE: UBER / ENTREGA LOCAL*\nEndereço: ${data.address || '-'}\nDestinatário: ${data.recipient_name || order.client_name}\nTelefone: ${data.phone || '-'}`;
+    } else {
+      formattedText += `*MODALIDADE: CORREIOS (SEDEX/PAC)*\nDestinatário: ${data.recipient_name || order.client_name}\nCPF: ${data.cpf || '-'}\nEndereço Completo: ${data.address || '-'}\nTelefone: ${data.phone || '-'}`;
+    }
+
+    this.currentDeliveryTextToCopy = formattedText;
+
+    content.innerHTML = `
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <span class="font-bold text-slate-900 text-xs">${this.escapeHtml(order.client_name)}</span>
+          <p class="text-[10px] text-slate-400 font-mono">${order.tracking_code || 'TRK-' + order.id}</p>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">
+          ${methodTitle}
+        </span>
+      </div>
+
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2">
+        ${method === 'correios' ? `
+          <div class="flex justify-between"><span class="text-slate-500">Destinatário:</span><strong class="text-slate-900">${this.escapeHtml(data.recipient_name || order.client_name)}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">CPF:</span><strong class="text-slate-900">${this.escapeHtml(data.cpf || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Telefone:</span><strong class="text-slate-900">${this.escapeHtml(data.phone || '-')}</strong></div>
+          <div class="pt-1 border-t border-slate-200"><span class="text-slate-500 block mb-0.5">Endereço de Entrega:</span><strong class="text-slate-900">${this.escapeHtml(data.address || '-')}</strong></div>
+        ` : ''}
+
+        ${method === 'excursao' ? `
+          <div class="flex justify-between"><span class="text-slate-500">Nome do Cliente:</span><strong class="text-slate-900">${this.escapeHtml(data.recipient_name || order.client_name)}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Telefone / Whats:</span><strong class="text-slate-900">${this.escapeHtml(data.phone || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Cidade de Destino:</span><strong class="text-slate-900">${this.escapeHtml(data.city || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Nome da Excursão:</span><strong class="text-slate-900">${this.escapeHtml(data.excursion_name || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Local do Ônibus:</span><strong class="text-slate-900">${this.escapeHtml(data.excursion_location || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Horário Limite:</span><strong class="text-slate-900">${this.escapeHtml(data.excursion_time || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Placa do Ônibus:</span><strong class="text-slate-900 font-mono">${this.escapeHtml(data.bus_plate || '-')}</strong></div>
+          <div class="flex justify-between pt-1 border-t border-slate-200"><span class="text-slate-500">Exige Nota Fiscal:</span><strong class="text-slate-900">${data.requires_invoice === 'Sim' ? '✅ Sim (Exige NF)' : 'Não'}</strong></div>
+        ` : ''}
+
+        ${method === 'transportadora' ? `
+          <div class="flex justify-between"><span class="text-slate-500">Transportadora:</span><strong class="text-slate-900">${this.escapeHtml(data.transporter_name || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Endereço no Polo:</span><strong class="text-slate-900">${this.escapeHtml(data.transporter_address || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Exige Nota Fiscal:</span><strong class="text-slate-900">${data.requires_invoice === 'Sim' ? '✅ Sim' : 'Não'}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Destinatário:</span><strong class="text-slate-900">${this.escapeHtml(data.recipient_name || order.client_name)}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">CPF:</span><strong class="text-slate-900">${this.escapeHtml(data.cpf || '-')}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Telefone:</span><strong class="text-slate-900">${this.escapeHtml(data.phone || '-')}</strong></div>
+          <div class="pt-1 border-t border-slate-200"><span class="text-slate-500 block mb-0.5">Endereço Destino:</span><strong class="text-slate-900">${this.escapeHtml(data.address || '-')}</strong></div>
+        ` : ''}
+
+        ${method === 'uber' ? `
+          <div class="flex justify-between"><span class="text-slate-500">Destinatário:</span><strong class="text-slate-900">${this.escapeHtml(data.recipient_name || order.client_name)}</strong></div>
+          <div class="flex justify-between"><span class="text-slate-500">Telefone:</span><strong class="text-slate-900">${this.escapeHtml(data.phone || '-')}</strong></div>
+          <div class="pt-1 border-t border-slate-200"><span class="text-slate-500 block mb-0.5">Endereço Completo de Entrega:</span><strong class="text-slate-900">${this.escapeHtml(data.address || '-')}</strong></div>
+        ` : ''}
+      </div>
+    `;
+
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  },
+
+  copyDeliveryDetailsToClipboard() {
+    if (!this.currentDeliveryTextToCopy) return;
+    navigator.clipboard.writeText(this.currentDeliveryTextToCopy).then(() => {
+      this.showToast('Dados de despacho copiados para o WhatsApp!', 'success');
+    });
   },
 
   formatCurrency(value) {

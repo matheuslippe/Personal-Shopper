@@ -37,6 +37,11 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
         order_date: formattedOrder.order_date,
         payment_date: formattedOrder.payment_date,
         status: formattedOrder.status,
+        scheduled_date: formattedOrder.scheduled_date,
+        scheduled_period: formattedOrder.scheduled_period,
+        acceptance_status: formattedOrder.acceptance_status,
+        delivery_method: formattedOrder.delivery_method,
+        delivery_data: formattedOrder.delivery_data,
         notes: formattedOrder.notes
       },
       assessor: {
@@ -87,7 +92,7 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
   // 3. Client Submit Purchase Request: POST /api/client/request
   if (pathname === '/api/client/request' && req.method === 'POST') {
     const body = await parseJsonBody(req);
-    const { items, supplier, notes, assessor_id } = body;
+    const { items, supplier, notes, assessor_id, delivery_method, delivery_data, save_as_default } = body;
 
     let parsedItems = [];
     if (Array.isArray(items) && items.length > 0) {
@@ -151,9 +156,17 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
       acceptanceStatus = 'agendado';
     }
 
+    const delMethod = delivery_method || 'correios';
+    const delJson = JSON.stringify(delivery_data || {});
+
+    // Save as default if requested
+    if (save_as_default) {
+      await queryRun("UPDATE users SET default_delivery_method = ?, default_delivery_json = ? WHERE id = ?", [delMethod, delJson, session.user_id]);
+    }
+
     const result = await queryRun(`
-      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, scheduled_date, scheduled_period, acceptance_status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, client_user_id, client_name, supplier, items_desc, item_type, quantity, commission_unit, commission_total, order_date, payment_date, status, notes, items_json, tracking_code, scheduled_date, scheduled_period, acceptance_status, delivery_method, delivery_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       targetAssessorId,
       session.user_id,
@@ -172,6 +185,8 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
       scheduledDate,
       scheduledPeriod,
       acceptanceStatus,
+      delMethod,
+      delJson,
       now,
       now
     ]);
@@ -185,7 +200,34 @@ async function handleClientRoutes(pathname, req, res, session, searchParams) {
     });
   }
 
-  // 4. Assessor Info & Pix for Client: GET /api/client/assessor-info
+  // 4. Client Delivery Profile: GET /api/client/delivery-profile
+  if (pathname === '/api/client/delivery-profile' && req.method === 'GET') {
+    const user = await queryGet("SELECT default_delivery_method, default_delivery_json FROM users WHERE id = ?", [session.user_id]);
+    let delData = {};
+    try {
+      if (user && user.default_delivery_json) delData = JSON.parse(user.default_delivery_json);
+    } catch (e) {}
+    return sendJson(res, 200, {
+      delivery_method: user ? (user.default_delivery_method || 'correios') : 'correios',
+      delivery_data: delData
+    });
+  }
+
+  // 5. Client Save Delivery Profile: POST /api/client/delivery-profile
+  if (pathname === '/api/client/delivery-profile' && req.method === 'POST') {
+    const body = await parseJsonBody(req);
+    const { delivery_method, delivery_data } = body;
+    const delMethod = delivery_method || 'correios';
+    const delJson = JSON.stringify(delivery_data || {});
+    await queryRun("UPDATE users SET default_delivery_method = ?, default_delivery_json = ? WHERE id = ?", [delMethod, delJson, session.user_id]);
+    return sendJson(res, 200, {
+      delivery_method: delMethod,
+      delivery_data: delivery_data || {},
+      message: 'Endereço e padrão de entrega salvos com sucesso!'
+    });
+  }
+
+  // 6. Assessor Info & Pix for Client: GET /api/client/assessor-info
   if (pathname === '/api/client/assessor-info' && req.method === 'GET') {
     let targetAssessorId = searchParams ? (parseInt(searchParams.get('assessor_id'), 10) || parseInt(searchParams.get('user_id'), 10)) : null;
     
